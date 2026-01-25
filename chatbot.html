@@ -60,7 +60,28 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
+        }
+
+        .law-types-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+
+        .law-types-bar span {
+            text-align: center;
+        }
+
+        .law-types-bar strong {
+            color: var(--primary);
+            margin-right: 4px;
         }
 
         .stat-card {
@@ -84,7 +105,7 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 350px;
             gap: 20px;
         }
 
@@ -94,13 +115,19 @@
             }
         }
 
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .chat-section {
             background: var(--card-bg);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            height: 700px;
+            height: 400px;
         }
 
         .chat-header {
@@ -302,7 +329,6 @@
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             padding: 20px;
-            margin-top: 20px;
             display: none;
         }
 
@@ -421,28 +447,52 @@
             </div>
         </div>
 
+        <div class="law-types-bar">
+            <span><strong>B</strong> Benefits</span>
+            <span><strong>P</strong> Policing</span>
+            <span><strong>E</strong> Employment</span>
+            <span><strong>D</strong> Driver's License</span>
+            <span><strong>H</strong> Housing</span>
+            <span><strong>L</strong> Licensing</span>
+            <span><strong>T</strong> Tuition</span>
+            <span><strong>V</strong> Voting/ID</span>
+            <span><strong>W</strong> Welfare</span>
+        </div>
+
         <div class="main-content">
-            <div class="chat-section">
-                <div class="chat-header">Ask about immigration legislation data</div>
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message bot">
-                        <div class="message-content">
-                            Welcome! I can help you explore the Immigrant Climate Index database. Try asking questions like:
-                            <ul style="margin-top: 10px; padding-left: 20px;">
-                                <li>Show me all laws in California</li>
-                                <li>How many positive laws were passed in 2017?</li>
-                                <li>Compare Texas and California</li>
-                                <li>What are the trends over time?</li>
-                                <li>Show policing laws by state</li>
-                            </ul>
+            <div class="left-column">
+                <div class="chat-section">
+                    <div class="chat-header">Ask about immigration legislation data</div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot">
+                            <div class="message-content">
+                                Welcome! I can help you explore the Immigrant Climate Index database. Try asking questions like:
+                                <ul style="margin-top: 10px; padding-left: 20px;">
+                                    <li>Show me all laws in California</li>
+                                    <li>How many positive laws were passed in 2017?</li>
+                                    <li>Compare Texas and California</li>
+                                    <li>What are the trends over time?</li>
+                                    <li>Show policing laws by state</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <div class="chat-input-wrapper">
+                            <input type="text" class="chat-input" id="chatInput" placeholder="Ask a question about the data...">
+                            <button class="send-btn" id="sendBtn">Send</button>
                         </div>
                     </div>
                 </div>
-                <div class="chat-input-area">
-                    <div class="chat-input-wrapper">
-                        <input type="text" class="chat-input" id="chatInput" placeholder="Ask a question about the data...">
-                        <button class="send-btn" id="sendBtn">Send</button>
+
+                <div class="results-section" id="resultsSection">
+                    <div class="results-header">
+                        <h3 id="resultsTitle">Results</h3>
                     </div>
+                    <div class="results-chart">
+                        <canvas id="resultsChart"></canvas>
+                    </div>
+                    <div id="resultsTable" class="data-table-container"></div>
                 </div>
             </div>
 
@@ -500,21 +550,6 @@
                 </div>
 
                 <div class="sidebar-card">
-                    <h3>Law Types</h3>
-                    <div class="tier-info" id="typeInfo">
-                        <div><strong>B</strong> - Benefits</div>
-                        <div><strong>P</strong> - Policing/Enforcement</div>
-                        <div><strong>E</strong> - Employment</div>
-                        <div><strong>D</strong> - Driver's License</div>
-                        <div><strong>H</strong> - Housing</div>
-                        <div><strong>L</strong> - Licensing</div>
-                        <div><strong>T</strong> - Tuition/Education</div>
-                        <div><strong>V</strong> - Voting/ID</div>
-                        <div><strong>W</strong> - Welfare</div>
-                    </div>
-                </div>
-
-                <div class="sidebar-card">
                     <h3>Tier System</h3>
                     <div class="tier-info">
                         <div><span class="tier-badge tier-positive">4</span> Many aspects of life (highest impact)</div>
@@ -525,16 +560,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="results-section" id="resultsSection">
-            <div class="results-header">
-                <h3 id="resultsTitle">Results</h3>
-            </div>
-            <div class="results-chart">
-                <canvas id="resultsChart"></canvas>
-            </div>
-            <div id="resultsTable" class="data-table-container"></div>
         </div>
     </div>
 
