@@ -16,7 +16,9 @@
 
 ```
 Immigrant-Climate/
-├── index.html                               # Main deliverable - self-contained HTML document (~1.7 MB)
+├── index.html                               # Main research document (~1.7 MB)
+├── chatbot.html                             # Interactive data explorer chatbot
+├── ici_data.json                            # JSON data for chatbot (~1.7 MB)
 ├── ACTIVE State_Legislation_Database.xlsx   # State-level legislation data (2005-2020)
 ├── ACTIVE_Local_Legislation_Database.xlsx   # County and city legislation data
 ├── README.md                                # Project title and basic info
@@ -148,11 +150,58 @@ The `index.html` file is very large (~1.7 MB) with long lines due to embedded re
 2. Check that all figures and images display correctly
 3. Verify interactive elements (if any) function properly
 
+## ICI Data Explorer (Chatbot)
+
+The `chatbot.html` file provides an interactive interface for exploring the legislation database.
+
+### Features
+- **Natural language queries** - Ask questions like "Show laws in California" or "Compare Texas and Florida"
+- **Quick filters** - Filter by state, type, year range, and direction (positive/restrictive)
+- **Visualizations** - Interactive charts using Chart.js
+- **Data export** - Export filtered results to CSV
+- **Trend analysis** - View legislation trends over time
+
+### Supported Query Types
+- State-specific: "Show me all laws in CA" or "California legislation"
+- Year-specific: "Laws passed in 2017"
+- Type-specific: "Show policing laws" or "sanctuary policies"
+- Comparisons: "Compare California and Texas"
+- Trends: "Show trends over time"
+- Trump Effect analysis: "Show 2017 Trump effect"
+
+### Data Files
+- `ici_data.json` - JSON export of both Excel databases, loaded by the chatbot
+- Contains 1,910 state laws and 2,618 local laws
+- Regenerate from Excel files using pandas if data is updated
+
+### Updating the Chatbot Data
+If the Excel files are updated, regenerate the JSON:
+
+```python
+import pandas as pd
+import json
+
+# Read and process state data
+state_df = pd.read_excel('ACTIVE State_Legislation_Database.xlsx')
+# ... processing code ...
+
+# Read and process local data (note: actual year is in 'Unnamed: 1' column)
+local_df = pd.read_excel('ACTIVE_Local_Legislation_Database.xlsx')
+local_df = local_df.rename(columns={'Unnamed: 1': 'ActualYear'})
+# ... processing code ...
+
+# Export to JSON
+with open('ici_data.json', 'w') as f:
+    json.dump(output, f)
+```
+
 ## Key Files Reference
 
 | File | Purpose | Size |
 |------|---------|------|
 | `index.html` | Main research document | ~1.7 MB |
+| `chatbot.html` | Interactive data explorer | ~45 KB |
+| `ici_data.json` | JSON data for chatbot | ~1.7 MB |
 | `ACTIVE State_Legislation_Database.xlsx` | State-level data | ~344 KB |
 | `ACTIVE_Local_Legislation_Database.xlsx` | Local-level data | ~636 KB |
 | `README.md` | Basic project info | Minimal |
