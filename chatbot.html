@@ -443,7 +443,13 @@
                         <input type="text" class="chat-input" id="chatInput" placeholder="Ask a question about the data...">
                         <button class="send-btn" id="sendBtn">Send</button>
                     </div>
-                    <div class="suggestions">
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-card">
+                    <h3>Sample Questions</h3>
+                    <div class="suggestions" style="margin-top: 0;">
                         <button class="suggestion" data-query="Show summary by state">By State</button>
                         <button class="suggestion" data-query="Show trends over time">Trends</button>
                         <button class="suggestion" data-query="Show laws by type">By Type</button>
@@ -452,9 +458,7 @@
                         <button class="suggestion" data-query="Show local sanctuary policies">Sanctuary</button>
                     </div>
                 </div>
-            </div>
 
-            <div class="sidebar">
                 <div class="sidebar-card">
                     <h3>Quick Filters</h3>
                     <div class="filter-group">
@@ -526,7 +530,6 @@
         <div class="results-section" id="resultsSection">
             <div class="results-header">
                 <h3 id="resultsTitle">Results</h3>
-                <button class="export-btn" id="exportBtn">Export CSV</button>
             </div>
             <div class="results-chart">
                 <canvas id="resultsChart"></canvas>
@@ -1179,7 +1182,6 @@
     });
 
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
-    document.getElementById('exportBtn').addEventListener('click', exportCSV);
 
     // Initialize
     loadData();
