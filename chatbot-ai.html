@@ -103,13 +103,19 @@
             }
         }
 
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .chat-section {
             background: var(--card-bg);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            height: 600px;
+            height: 420px;
         }
 
         .chat-header {
@@ -345,7 +351,6 @@
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             padding: 20px;
-            margin-top: 20px;
             display: none;
         }
 
@@ -460,42 +465,54 @@
         </div>
 
         <div class="main-content">
-            <div class="chat-section">
-                <div class="chat-header">
-                    <div class="ai-icon">AI</div>
-                    Chat with the ICI Database
-                </div>
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message bot">
-                        <div class="message-content">
-                            Hello! I'm an AI assistant that can help you explore the Immigrant Climate Index database. I have access to <strong>4,528 immigration laws</strong> from across the United States.
-                            <br><br>
-                            <strong>I can help you with:</strong>
-                            <ul style="margin-top: 10px; padding-left: 20px;">
-                                <li>Analyze trends and patterns in immigration legislation</li>
-                                <li>Compare policies across states or time periods</li>
-                                <li>Explain specific laws and their classifications</li>
-                                <li>Generate insights about the data</li>
-                                <li>Answer complex questions about immigration policy</li>
-                            </ul>
-                            <br>
-                            Try asking a question or click one of the suggestions below!
+            <div class="left-column">
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <div class="ai-icon">AI</div>
+                        Chat with the ICI Database
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot">
+                            <div class="message-content">
+                                Hello! I'm an AI assistant that can help you explore the Immigrant Climate Index database. I have access to <strong>4,528 immigration laws</strong> from across the United States.
+                                <br><br>
+                                <strong>I can help you with:</strong>
+                                <ul style="margin-top: 10px; padding-left: 20px;">
+                                    <li>Analyze trends and patterns in immigration legislation</li>
+                                    <li>Compare policies across states or time periods</li>
+                                    <li>Explain specific laws and their classifications</li>
+                                    <li>Generate insights about the data</li>
+                                    <li>Answer complex questions about immigration policy</li>
+                                </ul>
+                                <br>
+                                Try asking a question or click one of the suggestions below!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <div class="chat-input-wrapper">
+                            <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything about immigration legislation...">
+                            <button class="send-btn" id="sendBtn">Send</button>
+                        </div>
+                        <div class="suggestions">
+                            <button class="suggestion" data-query="What are the main trends in immigration legislation since 2005?">Trends</button>
+                            <button class="suggestion" data-query="Which states have the most immigrant-friendly policies?">Friendly States</button>
+                            <button class="suggestion" data-query="Explain the Trump Effect on immigration legislation">Trump Effect</button>
+                            <button class="suggestion" data-query="Compare sanctuary policies in California vs Texas">CA vs TX</button>
+                            <button class="suggestion" data-query="What types of laws are most common?">Law Types</button>
+                            <button class="suggestion" data-query="Analyze the policing and enforcement laws">Policing Laws</button>
                         </div>
                     </div>
                 </div>
-                <div class="chat-input-area">
-                    <div class="chat-input-wrapper">
-                        <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything about immigration legislation...">
-                        <button class="send-btn" id="sendBtn">Send</button>
+
+                <div class="results-section" id="resultsSection">
+                    <div class="results-header">
+                        <h3 id="resultsTitle">Results</h3>
                     </div>
-                    <div class="suggestions">
-                        <button class="suggestion" data-query="What are the main trends in immigration legislation since 2005?">Trends</button>
-                        <button class="suggestion" data-query="Which states have the most immigrant-friendly policies?">Friendly States</button>
-                        <button class="suggestion" data-query="Explain the Trump Effect on immigration legislation">Trump Effect</button>
-                        <button class="suggestion" data-query="Compare sanctuary policies in California vs Texas">CA vs TX</button>
-                        <button class="suggestion" data-query="What types of laws are most common?">Law Types</button>
-                        <button class="suggestion" data-query="Analyze the policing and enforcement laws">Policing Laws</button>
+                    <div class="results-chart">
+                        <canvas id="resultsChart"></canvas>
                     </div>
+                    <div id="resultsTable"></div>
                 </div>
             </div>
 
@@ -512,13 +529,6 @@
                 </div>
 
                 <div class="sidebar-card">
-                    <h3>Data Overview</h3>
-                    <div class="chart-container">
-                        <canvas id="overviewChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="sidebar-card">
                     <h3>Example Questions</h3>
                     <ul class="capability-list" style="list-style: none; padding: 0;">
                         <li>"How did legislation change after 2017?"</li>
@@ -529,17 +539,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="results-section" id="resultsSection">
-            <div class="results-header">
-                <h3 id="resultsTitle">Results</h3>
-                <button class="export-btn" id="exportBtn">Export CSV</button>
-            </div>
-            <div class="results-chart">
-                <canvas id="resultsChart"></canvas>
-            </div>
-            <div id="resultsTable"></div>
-        </div>
     </div>
 
     <script>
@@ -547,7 +546,6 @@
     let DATA = { stateLaws: [], localLaws: [], typeMap: {}, metadata: {} };
     let currentResults = [];
     let resultsChart = null;
-    let overviewChart = null;
 
     // Load data
     async function loadData() {
@@ -568,62 +566,6 @@
         document.getElementById('localLaws').textContent = DATA.localLaws.length.toLocaleString();
         document.getElementById('positiveLaws').textContent = allLaws.filter(l => l.posNeg === 1).length.toLocaleString();
         document.getElementById('negativeLaws').textContent = allLaws.filter(l => l.posNeg === 0).length.toLocaleString();
-
-        // Create overview chart
-        createOverviewChart(allLaws);
-    }
-
-    function createOverviewChart(laws) {
-        const yearData = {};
-        laws.forEach(l => {
-            if (l.year && l.year >= 2005) {
-                if (!yearData[l.year]) yearData[l.year] = { positive: 0, negative: 0 };
-                if (l.posNeg === 1) yearData[l.year].positive++;
-                else yearData[l.year].negative++;
-            }
-        });
-
-        const years = Object.keys(yearData).sort();
-        const ctx = document.getElementById('overviewChart').getContext('2d');
-
-        overviewChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: years,
-                datasets: [
-                    {
-                        label: 'Positive',
-                        data: years.map(y => yearData[y].positive),
-                        borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'Restrictive',
-                        data: years.map(y => yearData[y].negative),
-                        borderColor: '#dc2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 12, padding: 8 }
-                    }
-                },
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
-            }
-        });
     }
 
     function addMessage(type, content) {
@@ -994,35 +936,6 @@ Guidelines:
         tableDiv.innerHTML = html;
     }
 
-    function exportCSV() {
-        if (currentResults.length === 0) return;
-
-        const headers = ['Year', 'State', 'County', 'City', 'Type', 'PosNeg', 'Tier', 'Description'];
-        const rows = currentResults.map(law => [
-            law.year || '',
-            law.state || '',
-            law.county || '',
-            law.city || '',
-            law.type || '',
-            law.posNeg,
-            law.tier || '',
-            (law.description || '').replace(/"/g, '""')
-        ]);
-
-        let csv = headers.join(',') + '\n';
-        rows.forEach(row => {
-            csv += row.map(cell => `"${cell}"`).join(',') + '\n';
-        });
-
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ici_ai_export.csv';
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
     async function handleSend() {
         const input = document.getElementById('chatInput');
         const query = input.value.trim();
@@ -1062,8 +975,6 @@ Guidelines:
             handleSend();
         });
     });
-
-    document.getElementById('exportBtn').addEventListener('click', exportCSV);
 
     // Initialize
     loadData();
