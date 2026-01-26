@@ -753,8 +753,24 @@
             return response;
         }
 
-        // Policing/sanctuary queries
-        if (q.includes('polic') || q.includes('sanctuary') || q.includes('enforcement') || q.includes('detainer')) {
+        // Sanctuary laws queries - positive/immigrant-friendly laws
+        if (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming')) {
+            const sanctuaryLaws = allLaws.filter(l => l.posNeg === 1);
+            const stateSanctuary = sanctuaryLaws.filter(l => l.source === 'state').length;
+            const localSanctuary = sanctuaryLaws.filter(l => l.source === 'local').length;
+
+            currentResults = sanctuaryLaws;
+            showResults('Sanctuary/Positive Laws', sanctuaryLaws, 'byState');
+
+            return `Found <strong>${sanctuaryLaws.length}</strong> sanctuary/immigrant-friendly laws:<br>
+                    • ${stateSanctuary} state-level sanctuary laws<br>
+                    • ${localSanctuary} local sanctuary laws<br><br>
+                    In the ICI database, "sanctuary laws" refers to positive/immigrant-friendly legislation (laws with a positive score). These include policies that protect immigrants, expand access to services, or limit cooperation with federal immigration enforcement.`;
+        }
+
+        // Policing/enforcement queries
+        if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
             const policingLaws = allLaws.filter(l => l.type === 'P');
             const positive = policingLaws.filter(l => l.posNeg === 1).length;
 
@@ -762,9 +778,9 @@
             showResults('Policing/Enforcement Laws', policingLaws, 'byYear');
 
             return `Found <strong>${policingLaws.length}</strong> Policing/Enforcement laws:<br>
-                    • ${positive} sanctuary/positive policies<br>
+                    • ${positive} positive (sanctuary) policies<br>
                     • ${policingLaws.length - positive} enforcement/restrictive policies<br><br>
-                    These include sanctuary policies, 287(g) agreements, and detainer policies.`;
+                    These include sanctuary city policies, 287(g) agreements, and detainer policies.`;
         }
 
         // Trends over time

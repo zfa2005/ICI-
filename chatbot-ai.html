@@ -645,8 +645,16 @@
             summary.filterYear = year;
         }
 
+        // Direction filter - sanctuary = positive laws
+        if (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming')) {
+            if (relevantData.length === 0) relevantData = allLaws;
+            relevantData = relevantData.filter(l => l.posNeg === 1);
+            summary.filterType = 'Sanctuary/Positive';
+        }
+
         // Type filter
-        if (q.includes('polic') || q.includes('sanctuary') || q.includes('enforcement')) {
+        if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
             if (relevantData.length === 0) relevantData = allLaws;
             relevantData = relevantData.filter(l => l.type === 'P');
             summary.filterType = 'Policing/Enforcement';
@@ -733,8 +741,10 @@
         const systemPrompt = `You are an expert analyst for the Immigrant Climate Index (ICI) database. You have access to data about ${dataContext.totalLaws} immigration-related laws in the United States.
 
 The ICI measures the regulatory "climate" for immigrants at federal, state, county, and city levels through a quantitative scoring system:
-- Positive laws (posNeg=1): Immigrant-friendly legislation
-- Negative/Restrictive laws (posNeg=0): Restrictive legislation
+- Positive laws (posNeg=1): Immigrant-friendly legislation, also known as "sanctuary laws" - these include sanctuary city policies, laws that protect immigrants, expand access to services, or limit cooperation with federal immigration enforcement
+- Negative/Restrictive laws (posNeg=0): Restrictive/anti-immigrant legislation
+
+IMPORTANT: When users ask about "sanctuary laws", they are asking about positive/immigrant-friendly laws (posNeg=1). All positive laws in the database are considered sanctuary laws.
 
 Law Types:
 ${Object.entries(DATA.typeMap).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
