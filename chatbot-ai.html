@@ -427,6 +427,7 @@
 <body>
     <div class="container">
         <header>
+            <a href="index.html" style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px;">← Back to Research</a>
             <h1>ICI AI Assistant</h1>
             <p>Explore the subfederal immigration laws database</p>
         </header>
@@ -526,6 +527,20 @@
                         <li>"What's the breakdown of law types?"</li>
                         <li>"Show me employment laws in Florida"</li>
                     </ul>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3>About the ICI</h3>
+                    <p style="font-size: 13px; line-height: 1.5; color: #666;">
+                        The <strong>Immigrant Climate Index</strong> measures the regulation-induced "climate" for immigrants in the United States at federal, state, county, and city levels through a quantitative scoring system.
+                    </p>
+                    <p style="font-size: 13px; line-height: 1.5; color: #666; margin-top: 10px;">
+                        <strong>Positive laws</strong> (sanctuary laws) are immigrant-friendly. <strong>Restrictive laws</strong> limit immigrant rights or increase enforcement.
+                    </p>
+                    <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                        By Huyen Pham (Texas A&M Law) & Pham Hoang Van (Baylor University)
+                    </p>
+                    <a href="index.html" style="display: inline-block; margin-top: 10px; color: #667eea; text-decoration: none; font-size: 13px;">Read the full research →</a>
                 </div>
             </div>
         </div>
@@ -645,8 +660,16 @@
             summary.filterYear = year;
         }
 
+        // Direction filter - sanctuary = positive laws
+        if (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming')) {
+            if (relevantData.length === 0) relevantData = allLaws;
+            relevantData = relevantData.filter(l => l.posNeg === 1);
+            summary.filterType = 'Sanctuary/Positive';
+        }
+
         // Type filter
-        if (q.includes('polic') || q.includes('sanctuary') || q.includes('enforcement')) {
+        if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
             if (relevantData.length === 0) relevantData = allLaws;
             relevantData = relevantData.filter(l => l.type === 'P');
             summary.filterType = 'Policing/Enforcement';
@@ -733,8 +756,10 @@
         const systemPrompt = `You are an expert analyst for the Immigrant Climate Index (ICI) database. You have access to data about ${dataContext.totalLaws} immigration-related laws in the United States.
 
 The ICI measures the regulatory "climate" for immigrants at federal, state, county, and city levels through a quantitative scoring system:
-- Positive laws (posNeg=1): Immigrant-friendly legislation
-- Negative/Restrictive laws (posNeg=0): Restrictive legislation
+- Positive laws (posNeg=1): Immigrant-friendly legislation, also known as "sanctuary laws" - these include sanctuary city policies, laws that protect immigrants, expand access to services, or limit cooperation with federal immigration enforcement
+- Negative/Restrictive laws (posNeg=0): Restrictive/anti-immigrant legislation
+
+IMPORTANT: When users ask about "sanctuary laws", they are asking about positive/immigrant-friendly laws (posNeg=1). All positive laws in the database are considered sanctuary laws.
 
 Law Types:
 ${Object.entries(DATA.typeMap).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
