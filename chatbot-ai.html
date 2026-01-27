@@ -626,26 +626,33 @@
             'puerto rico': 'PR', 'district of columbia': 'DC'
         };
 
-        // Check for state name first (more reliable)
-        let detectedState = null;
+        // Detect ALL mentioned states (for comparisons)
+        let detectedStates = [];
         for (const [name, code] of Object.entries(stateNameMap)) {
             if (q.includes(name)) {
-                detectedState = code;
-                break;
+                detectedStates.push(code);
+            }
+        }
+        // Also check for state codes with context
+        const codeMatches = q.matchAll(/(?:in|for|from|of|vs|versus|and|,)\s+([a-z]{2})\b/gi);
+        for (const match of codeMatches) {
+            if (validStateCodes.includes(match[1].toUpperCase()) && !detectedStates.includes(match[1].toUpperCase())) {
+                detectedStates.push(match[1].toUpperCase());
             }
         }
 
-        // Check for state code only with context words (in, for, from) to avoid false matches
-        if (!detectedState) {
-            const codeMatch = q.match(/(?:in|for|from|of)\s+([a-z]{2})\b/i);
-            if (codeMatch && validStateCodes.includes(codeMatch[1].toUpperCase())) {
-                detectedState = codeMatch[1].toUpperCase();
-            }
-        }
+        // Check if this is a comparison query
+        const isComparison = q.includes('compare') || q.includes('vs') || q.includes('versus') ||
+                            (q.includes('and') && detectedStates.length >= 2) || detectedStates.length >= 2;
 
-        if (detectedState) {
-            relevantData = allLaws.filter(l => l.state === detectedState);
-            summary.filterState = detectedState;
+        // For comparison queries, get data for all mentioned states
+        if (isComparison && detectedStates.length >= 2) {
+            relevantData = allLaws.filter(l => detectedStates.includes(l.state));
+            summary.comparisonStates = detectedStates;
+            summary.filterType = 'State Comparison';
+        } else if (detectedStates.length > 0) {
+            relevantData = allLaws.filter(l => l.state === detectedStates[0]);
+            summary.filterState = detectedStates[0];
         }
 
         // Year filter
@@ -660,27 +667,29 @@
             summary.filterYear = year;
         }
 
-        // Direction filter - sanctuary = positive laws
-        if (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
-            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming')) {
+        // Direction filter - sanctuary = positive laws (but NOT for comparisons - we need both)
+        if (!isComparison && (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming'))) {
             if (relevantData.length === 0) relevantData = allLaws;
             relevantData = relevantData.filter(l => l.posNeg === 1);
             summary.filterType = 'Sanctuary/Positive';
         }
 
-        // Type filter
-        if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
-            if (relevantData.length === 0) relevantData = allLaws;
-            relevantData = relevantData.filter(l => l.type === 'P');
-            summary.filterType = 'Policing/Enforcement';
-        } else if (q.includes('employment') || q.includes('worker') || q.includes('job')) {
-            if (relevantData.length === 0) relevantData = allLaws;
-            relevantData = relevantData.filter(l => l.type === 'E');
-            summary.filterType = 'Employment';
-        } else if (q.includes('benefit')) {
-            if (relevantData.length === 0) relevantData = allLaws;
-            relevantData = relevantData.filter(l => l.type === 'B');
-            summary.filterType = 'Benefits';
+        // Type filter (but NOT for sanctuary comparisons)
+        if (!isComparison || !q.includes('sanctuary')) {
+            if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'P');
+                summary.filterType = 'Policing/Enforcement';
+            } else if (q.includes('employment') || q.includes('worker') || q.includes('job')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'E');
+                summary.filterType = 'Employment';
+            } else if (q.includes('benefit')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'B');
+                summary.filterType = 'Benefits';
+            }
         }
 
         // If no specific filter, get general stats
@@ -722,17 +731,64 @@
             byType[type]++;
         });
 
-        // Sample laws
-        const sampleLaws = relevantData.slice(0, 10).map(l => ({
-            year: l.year,
-            state: l.state,
-            type: l.type,
-            direction: l.posNeg === 1 ? 'Positive' : 'Restrictive',
-            description: l.description ? l.description.substring(0, 150) : 'N/A'
-        }));
+        // Sample laws - for comparisons, get samples from each state
+        let sampleLaws = [];
+        if (summary.comparisonStates && summary.comparisonStates.length >= 2) {
+            // Get samples from each state being compared
+            summary.comparisonStates.forEach(stateCode => {
+                const stateLawsForSample = relevantData.filter(l => l.state === stateCode);
+                const positiveSamples = stateLawsForSample.filter(l => l.posNeg === 1).slice(0, 3);
+                const negativeSamples = stateLawsForSample.filter(l => l.posNeg === 0).slice(0, 3);
+                sampleLaws.push(...positiveSamples.map(l => ({
+                    year: l.year,
+                    state: l.state,
+                    type: l.type,
+                    direction: 'Positive/Sanctuary',
+                    description: l.description ? l.description.substring(0, 150) : 'N/A'
+                })));
+                sampleLaws.push(...negativeSamples.map(l => ({
+                    year: l.year,
+                    state: l.state,
+                    type: l.type,
+                    direction: 'Restrictive',
+                    description: l.description ? l.description.substring(0, 150) : 'N/A'
+                })));
+            });
+        } else {
+            sampleLaws = relevantData.slice(0, 10).map(l => ({
+                year: l.year,
+                state: l.state,
+                type: l.type,
+                direction: l.posNeg === 1 ? 'Positive' : 'Restrictive',
+                description: l.description ? l.description.substring(0, 150) : 'N/A'
+            }));
+        }
 
         // Store for visualization
         currentResults = relevantData;
+
+        // Build detailed state comparison data if comparing
+        let stateComparison = null;
+        if (summary.comparisonStates && summary.comparisonStates.length >= 2) {
+            stateComparison = {};
+            summary.comparisonStates.forEach(stateCode => {
+                const stateLawsAll = relevantData.filter(l => l.state === stateCode);
+                stateComparison[stateCode] = {
+                    total: stateLawsAll.length,
+                    positive: stateLawsAll.filter(l => l.posNeg === 1).length,
+                    negative: stateLawsAll.filter(l => l.posNeg === 0).length,
+                    byType: {}
+                };
+                stateLawsAll.forEach(l => {
+                    const type = l.type || 'Unknown';
+                    if (!stateComparison[stateCode].byType[type]) {
+                        stateComparison[stateCode].byType[type] = { positive: 0, negative: 0 };
+                    }
+                    if (l.posNeg === 1) stateComparison[stateCode].byType[type].positive++;
+                    else stateComparison[stateCode].byType[type].negative++;
+                });
+            });
+        }
 
         return {
             totalLaws: relevantData.length,
@@ -746,7 +802,8 @@
             typeMap: DATA.typeMap,
             sampleLaws,
             filters: summary,
-            yearRange: DATA.metadata.yearRange
+            yearRange: DATA.metadata.yearRange,
+            stateComparison
         };
     }
 
@@ -759,7 +816,11 @@ The ICI measures the regulatory "climate" for immigrants at federal, state, coun
 - Positive laws (posNeg=1): Immigrant-friendly legislation, also known as "sanctuary laws" - these include sanctuary city policies, laws that protect immigrants, expand access to services, or limit cooperation with federal immigration enforcement
 - Negative/Restrictive laws (posNeg=0): Restrictive/anti-immigrant legislation
 
-IMPORTANT: When users ask about "sanctuary laws", they are asking about positive/immigrant-friendly laws (posNeg=1). All positive laws in the database are considered sanctuary laws.
+IMPORTANT RULES FOR INTERPRETING DATA:
+1. "Sanctuary laws" = positive/immigrant-friendly laws (posNeg=1). All positive laws are sanctuary laws.
+2. If a state has 0 positive laws, report this as "0 sanctuary laws" or "no sanctuary policies" - NOT as "no data available". The database has comprehensive coverage.
+3. If stateComparison shows a state with positive=0, that state has NO sanctuary laws - this is meaningful data, not missing data.
+4. When comparing states, always report the actual numbers for BOTH states, even if one has 0.
 
 Law Types:
 ${Object.entries(DATA.typeMap).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
@@ -774,11 +835,11 @@ Current data context based on the user's query:
 ${JSON.stringify(dataContext, null, 2)}
 
 Guidelines:
-1. Use the actual data provided to answer questions accurately
+1. Use the actual data provided to answer questions accurately - the data is comprehensive
 2. Cite specific numbers and statistics from the data
-3. Explain trends and patterns you observe
-4. Be helpful and informative about immigration policy
-5. If asked about specific laws, reference the sample laws provided
+3. When comparing states, use the stateComparison object which shows positive/negative counts for each state
+4. If a state shows 0 positive laws, explicitly state they have "0 sanctuary/positive laws" (do NOT say data is unavailable)
+5. Explain the contrast between states with many sanctuary laws vs states with few or none
 6. Keep responses concise but informative
 7. Use markdown formatting for better readability`;
 
