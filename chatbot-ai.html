@@ -667,9 +667,21 @@
             summary.filterYear = year;
         }
 
-        // Direction filter - sanctuary = positive laws (but NOT for comparisons - we need both)
-        if (!isComparison && (q.includes('sanctuary') || (q.includes('immigrant') && q.includes('friendly')) ||
-            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming'))) {
+        // Direction filter - handle both positive (sanctuary) and negative (restrictive) queries
+        // Check for restrictive/unfriendly FIRST (since "unfriendly" contains "friendly")
+        const isRestrictiveQuery = q.includes('restrictive') || q.includes('unfriendly') ||
+            q.includes('anti-immigrant') || q.includes('anti immigrant') ||
+            (q.includes('negative') && q.includes('law')) || q.includes('harsh');
+
+        const isSanctuaryQuery = !isRestrictiveQuery && (q.includes('sanctuary') ||
+            (q.includes('immigrant') && q.includes('friendly') && !q.includes('unfriendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming'));
+
+        if (!isComparison && isRestrictiveQuery) {
+            if (relevantData.length === 0) relevantData = allLaws;
+            relevantData = relevantData.filter(l => l.posNeg === 0);
+            summary.filterType = 'Restrictive/Negative';
+        } else if (!isComparison && isSanctuaryQuery) {
             if (relevantData.length === 0) relevantData = allLaws;
             relevantData = relevantData.filter(l => l.posNeg === 1);
             summary.filterType = 'Sanctuary/Positive';
@@ -818,9 +830,12 @@ The ICI measures the regulatory "climate" for immigrants at federal, state, coun
 
 IMPORTANT RULES FOR INTERPRETING DATA:
 1. "Sanctuary laws" = positive/immigrant-friendly laws (posNeg=1). All positive laws are sanctuary laws.
-2. If a state has 0 positive laws, report this as "0 sanctuary laws" or "no sanctuary policies" - NOT as "no data available". The database has comprehensive coverage.
-3. If stateComparison shows a state with positive=0, that state has NO sanctuary laws - this is meaningful data, not missing data.
-4. When comparing states, always report the actual numbers for BOTH states, even if one has 0.
+2. "Restrictive laws" or "unfriendly laws" = negative laws (posNeg=0). These are anti-immigrant policies.
+3. The database contains BOTH positive AND negative laws. If filtering shows only one type, that's the filter working - not missing data.
+4. If a state has 0 positive laws, report this as "0 sanctuary laws" - NOT as "no data available".
+5. If a state has 0 negative laws, report this as "0 restrictive laws" - NOT as "no data available".
+6. When comparing states, always report actual numbers for BOTH states, even if one has 0.
+7. Use byState data to show which states have the most/least of a particular type of law.
 
 Law Types:
 ${Object.entries(DATA.typeMap).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
