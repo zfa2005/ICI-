@@ -755,6 +755,9 @@
                 sampleLaws.push(...positiveSamples.map(l => ({
                     year: l.year,
                     state: l.state,
+                    county: l.county || '',
+                    city: l.city || '',
+                    source: l.source,
                     type: l.type,
                     direction: 'Positive/Sanctuary',
                     description: l.description ? l.description.substring(0, 150) : 'N/A'
@@ -762,15 +765,23 @@
                 sampleLaws.push(...negativeSamples.map(l => ({
                     year: l.year,
                     state: l.state,
+                    county: l.county || '',
+                    city: l.city || '',
+                    source: l.source,
                     type: l.type,
                     direction: 'Restrictive',
                     description: l.description ? l.description.substring(0, 150) : 'N/A'
                 })));
             });
         } else {
-            sampleLaws = relevantData.slice(0, 10).map(l => ({
+            // For single state or general queries, include more samples with city/county info
+            const maxSamples = summary.filterState ? 25 : 10;
+            sampleLaws = relevantData.slice(0, maxSamples).map(l => ({
                 year: l.year,
                 state: l.state,
+                county: l.county || '',
+                city: l.city || '',
+                source: l.source,
                 type: l.type,
                 direction: l.posNeg === 1 ? 'Positive' : 'Restrictive',
                 description: l.description ? l.description.substring(0, 150) : 'N/A'
@@ -803,6 +814,26 @@
             });
         }
 
+        // Build list of cities/counties with their law counts when filtering by state
+        let localities = null;
+        if (summary.filterState || (summary.comparisonStates && summary.comparisonStates.length > 0)) {
+            localities = {};
+            relevantData.filter(l => l.source === 'local').forEach(l => {
+                const locality = l.city || l.county || 'Unknown';
+                if (locality && locality !== 'Unknown') {
+                    if (!localities[locality]) {
+                        localities[locality] = {
+                            positive: 0, negative: 0,
+                            type: l.city ? 'city' : 'county',
+                            state: l.state
+                        };
+                    }
+                    if (l.posNeg === 1) localities[locality].positive++;
+                    else localities[locality].negative++;
+                }
+            });
+        }
+
         return {
             totalLaws: relevantData.length,
             positive,
@@ -811,6 +842,7 @@
             localLaws,
             byYear,
             byState,
+            localities,
             byType,
             typeMap: DATA.typeMap,
             sampleLaws,
@@ -840,6 +872,9 @@ IMPORTANT RULES FOR INTERPRETING DATA:
 8. byState breakdown: total, positive, negative (all laws), plus stateLevelPositive, stateLevelNegative, localPositive, localNegative.
 9. When reporting on a state's policies, include both state-level and local counts to give the full picture.
 10. If user asks about "state laws" specifically, focus on stateLevelPositive/stateLevelNegative. Otherwise include all laws in that state.
+11. The "localities" object lists specific cities and counties with laws, showing positive/negative counts for each.
+12. When asked about cities/counties in a state, USE the localities object to list the actual city and county NAMES.
+13. sampleLaws includes city and county fields - use these to give specific examples with location names.
 
 Law Types:
 ${Object.entries(DATA.typeMap).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
