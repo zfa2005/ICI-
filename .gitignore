@@ -1,18 +1,34 @@
-# This .gitignore is appropriate for repositories deployed to GitHub Pages and using
-# a Gemfile as specified at https://github.com/github/pages-gem#conventional
+# ── Environment ───────────────────────────────────────────────────────────────
+.env
+.env.local
 
-# Basic Jekyll gitignores (synchronize to Jekyll.gitignore)
+# ── Runtime database ──────────────────────────────────────────────────────────
+# db/ folder is auto-created by server.js on first run. Track the folder
+# itself (.gitkeep) but never commit the database contents.
+db/*.db
+db/*.db-shm
+db/*.db-wal
+
+# Legacy db files if they exist in root (before reorganisation)
+ici_chats.db
+ici_chats.db-shm
+ici_chats.db-wal
+
+# ── Node.js ───────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Claude Code project settings (machine-specific) ───────────────────────────
+.claude/
+
+# ── OS artefacts ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── GitHub Pages / Jekyll (legacy) ────────────────────────────────────────────
 _site/
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
-
-# Additional Ruby/bundler ignore for when you run: bundle install
 /vendor
-
-# Specific ignore for GitHub Pages
-# GitHub Pages will always use its own deployed version of pages-gem 
-# This means GitHub Pages will NOT use your Gemfile.lock and therefore it is
-# counterproductive to check this file into the repository.
-# Details at https://github.com/github/pages-gem/issues/768
 Gemfile.lock

@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICI AI Assistant — Immigrant Climate Index</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --accent: #6366F1;
+            --accent-dark: #4F46E5;
+            --accent-glow: rgba(99, 102, 241, 0.12);
+            --accent-light: #818CF8;
+            --positive: #10B981;
+            --negative: #EF4444;
+            --bg: #09090B;
+            --surface-1: #111113;
+            --surface-2: #18181B;
+            --surface-3: #27272A;
+            --border: #3F3F46;
+            --border-subtle: #27272A;
+            --text: #FAFAFA;
+            --text-2: #A1A1AA;
+            --text-muted: #71717A;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525B; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* ── HISTORY PANEL (fixed left sidebar) ── */
+        .history-panel {
+            position: fixed;
+            top: 0; left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #0C0C0E;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.22s ease;
+        }
+
+        body.sidebar-collapsed .history-panel { transform: translateX(-220px); }
+        body.sidebar-collapsed .main-wrapper  { margin-left: 0; }
+
+        /* ── DELETE CONFIRMATION MODAL ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 500;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.18s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px 24px 20px;
+            width: 340px;
+            max-width: calc(100vw - 40px);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+            transform: scale(0.95) translateY(6px);
+            transition: transform 0.18s cubic-bezier(0.16,1,0.3,1);
+        }
+        .modal-overlay.open .modal-card { transform: scale(1) translateY(0); }
+        .modal-title {
+            font-size: 0.95rem; font-weight: 700;
+            color: var(--text); margin-bottom: 10px;
+        }
+        .modal-body {
+            font-size: 0.82rem; color: var(--text-2);
+            line-height: 1.55; margin-bottom: 20px;
+        }
+        .modal-body strong { color: var(--text); }
+        .modal-body .modal-warning {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+        }
+        .modal-actions {
+            display: flex; justify-content: flex-end; gap: 8px;
+        }
+        .modal-cancel-btn {
+            padding: 7px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem; font-weight: 500;
+            color: var(--text-2); cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .modal-cancel-btn:hover { border-color: var(--text-muted); color: var(--text); }
+        .modal-delete-btn {
+            padding: 7px 18px;
+            background: #dc2626;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.82rem; font-weight: 600;
+            color: #fff; cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .modal-delete-btn:hover { background: #b91c1c; transform: scale(1.03); }
+
+        /* Expand tab removed — replaced by #iciOpenBtn in top bar */
+        .sidebar-expand-tab { display: none !important; }
+
+        /* ICI button shown in top bar only when sidebar is collapsed */
+        .ici-open-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 10px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.1s;
+            margin-right: 6px;
+        }
+        .ici-open-btn:hover { background: var(--accent-dark); transform: scale(1.04); }
+        body.sidebar-collapsed .ici-open-btn { display: flex; }
+
+        .sidebar-collapse-btn {
+            width: 22px; height: 22px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: inherit;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .sidebar-collapse-btn:hover { background: var(--surface-3); color: var(--text); }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 12px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .history-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .new-chat-btn {
+            padding: 4px 10px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 6px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            color: var(--accent-light);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .new-chat-btn:hover {
+            background: rgba(99,102,241,0.22);
+            border-color: var(--accent);
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .history-empty {
+            padding: 24px 8px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            margin-bottom: 2px;
+            min-width: 0;
+            transition: background 0.12s, border-color 0.12s;
+        }
+
+        .chat-item:hover { background: var(--surface-2); }
+
+        .chat-item.active {
+            background: var(--accent-glow);
+            border-color: rgba(99,102,241,0.22);
+        }
+
+        .chat-item-name {
+            flex: 1;
+            font-size: 0.79rem;
+            color: var(--text-2);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            line-height: 1.3;
+        }
+
+        .chat-item.active .chat-item-name { color: var(--text); }
+
+        .chat-item-actions {
+            display: none;
+            gap: 1px;
+            flex-shrink: 0;
+        }
+
+        .chat-item:hover .chat-item-actions { display: flex; }
+
+        .chat-action-btn {
+            width: 20px; height: 20px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.12s;
+            font-family: inherit;
+        }
+
+        .chat-action-btn:hover { background: var(--surface-3); color: var(--text); }
+        .delete-btn:hover { color: var(--negative) !important; }
+
+        .chat-item-input {
+            flex: 1;
+            background: var(--surface-2);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 0.79rem;
+            padding: 2px 6px;
+            outline: none;
+            font-family: inherit;
+            min-width: 0;
+        }
+
+        /* ── MAIN WRAPPER ── */
+        .main-wrapper {
+            margin-left: 220px;
+            transition: margin-left 0.22s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px;
+        }
+
+        /* ── HEADER ── */
+        header {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            padding: 52px 32px 24px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header nav {
+            position: absolute;
+            top: 14px; left: 16px;
+            display: flex;
+            gap: 6px;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.7;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 span {
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header > p { color: var(--text-2); font-size: 0.88rem; }
+
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+
+        /* ── LAYOUT ── */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .history-panel { display: none; }
+            .main-wrapper { margin-left: 0; }
+        }
+
+        /* ── CHAT ── */
+        .chat-section {
+            background: var(--surface-1);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .chat-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.84rem;
+            color: var(--text-2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .ai-icon {
+            width: 22px; height: 22px;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 9px; font-weight: 700; flex-shrink: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message { display: flex; flex-direction: column; }
+        .message.user { align-items: flex-end; }
+        .message.bot  { align-items: flex-start; }
+
+        .message-content {
+            max-width: 88%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background: var(--accent);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            font-weight: 500;
+        }
+
+        .message.bot .message-content {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.bot .message-content pre {
+            background: #0d0d10;
+            color: #e2e8f0;
+            padding: 12px 14px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid var(--border);
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.55;
+        }
+
+        .message.bot .message-content code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.84em;
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .message.bot .message-content pre code { background: none; padding: 0; border: none; }
+
+        .message.bot .message-content ul,
+        .message.bot .message-content ol { padding-left: 18px; margin: 6px 0; }
+
+        .message.bot .message-content li { margin-bottom: 3px; color: var(--text-2); }
+        .message.bot .message-content strong { color: var(--text); }
+        .message.bot .message-content p { margin-bottom: 8px; }
+        .message.bot .message-content p:last-child { margin-bottom: 0; }
+
+        .message.bot .message-content h1,
+        .message.bot .message-content h2,
+        .message.bot .message-content h3 {
+            color: var(--text);
+            font-weight: 700;
+            line-height: 1.3;
+            margin: 14px 0 5px;
+        }
+        .message.bot .message-content h1 { font-size: 1.08em; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .message.bot .message-content h2 { font-size: 0.98em; }
+        .message.bot .message-content h3 { font-size: 0.9em; color: var(--accent-light); }
+        .message.bot .message-content h1:first-child,
+        .message.bot .message-content h2:first-child,
+        .message.bot .message-content h3:first-child { margin-top: 2px; }
+
+        .message.bot .message-content hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
+        }
+
+        .message.bot .message-content table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            margin: 10px 0;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .message.bot .message-content th {
+            background: var(--surface-3);
+            color: var(--text-muted);
+            font-size: 0.69rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 7px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .message.bot .message-content td {
+            padding: 6px 10px;
+            color: var(--text-2);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .message.bot .message-content tr:last-child td { border-bottom: none; }
+        .message.bot .message-content tr:hover td { background: rgba(255,255,255,0.025); }
+
+        .chat-input-area {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .chat-input-wrapper { display: flex; gap: 8px; }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.875rem;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .chat-input::placeholder { color: var(--text-muted); }
+
+        .chat-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .chat-input:disabled { background: var(--surface-1); cursor: not-allowed; opacity: 0.6; }
+
+        .send-btn {
+            padding: 10px 18px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .send-btn:hover:not(:disabled) { background: var(--accent-dark); transform: translateY(-1px); }
+        .send-btn:active:not(:disabled) { transform: translateY(0); }
+        .send-btn:disabled { background: #3F3F46; cursor: not-allowed; }
+
+        /* ── QUICK CHIPS ── */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 9px;
+        }
+
+        .suggestion {
+            padding: 4px 11px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            font-size: 0.76rem;
+            color: var(--text-2);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .suggestion:hover {
+            border-color: var(--accent);
+            color: var(--accent-light);
+            background: var(--accent-glow);
+        }
+
+        /* ── TYPING INDICATOR ── */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 10px 14px;
+            align-items: center;
+        }
+
+        .typing-indicator span {
+            width: 7px; height: 7px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.55); opacity: 0.4; }
+            40%            { transform: scale(1);    opacity: 1;   }
+        }
+
+        /* ── VIZ TOGGLE BAR ── */
+        .viz-toggle-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            user-select: none;
+        }
+        .viz-toggle-bar:hover { border-color: var(--accent); background: var(--surface-2); }
+        .viz-toggle-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-2);
+        }
+        .viz-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 99px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--accent-light);
+        }
+        .viz-badge::before {
+            content: '';
+            width: 5px; height: 5px;
+            background: var(--accent-light);
+            border-radius: 50%;
+        }
+        .viz-chevron {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .viz-toggle-bar.open .viz-chevron { transform: rotate(180deg); }
+
+        .viz-hide-btn {
+            padding: 3px 9px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.73rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .viz-hide-btn:hover { border-color: var(--negative); color: var(--negative); background: rgba(239,68,68,0.08); }
+
+        /* ── INFO GRID (cards below viz) ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 700px) { .info-grid { grid-template-columns: 1fr; } }
+
+        /* ── SIDEBAR CARDS (reused in info-grid) ── */
+        .sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+        .sidebar-card {
+            background: var(--surface-1);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 15px;
+        }
+
+        .sidebar-card h3 {
+            margin-bottom: 11px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        /* Example question buttons */
+        .example-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .example-list li {
+            font-size: 0.8rem;
+            color: var(--text-2);
+            padding: 8px 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            line-height: 1.4;
+        }
+
+        .example-list li:hover {
+            border-color: var(--accent);
+            color: var(--text);
+            background: var(--accent-glow);
+        }
+
+        .sidebar-card p { font-size: 0.8rem; line-height: 1.55; color: var(--text-2); }
+        .sidebar-card p + p { margin-top: 8px; }
+        .sidebar-card a { color: var(--accent-light); text-decoration: none; }
+        .sidebar-card a:hover { color: var(--text); }
+
+        /* ── RESULTS ── */
+        .results-section {
+            background: var(--surface-1);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            padding: 18px;
+            display: none;
+        }
+
+        .results-section.active { display: block; }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .results-header h3 { font-size: 0.88rem; font-weight: 600; }
+
+        .results-chart { height: 260px; margin: 12px 0; }
+
+        #resultsTable { max-height: 360px; overflow-y: auto; }
+        #resultsTable table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+
+        #resultsTable th, #resultsTable td {
+            padding: 7px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        #resultsTable th {
+            background: var(--surface-2);
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        #resultsTable tr:hover td { background: rgba(255,255,255,0.02); }
+        #resultsTable td { color: var(--text-2); }
+
+        .positive-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            background: rgba(16,185,129,0.12);
+            color: var(--positive);
+            border: 1px solid rgba(16,185,129,0.25);
+            border-radius: 99px;
+            font-size: 0.71rem;
+            font-weight: 500;
+        }
+
+        .negative-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            background: rgba(239,68,68,0.12);
+            color: var(--negative);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 99px;
+            font-size: 0.71rem;
+            font-weight: 500;
+        }
+
+        .truncate {
+            max-width: 240px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           CHATGPT-STYLE FULL-HEIGHT LAYOUT OVERRIDES
+           ═══════════════════════════════════════════════════════════════ */
+
+        body { height: 100vh; overflow: hidden; display: flex; }
+
+        /* Hide old header box and chat-header bar */
+        header { display: none !important; }
+        .chat-header { display: none !important; }
+
+        /* Main wrapper: full-height flex column */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        /* Container: flex column, fills space */
+        .container {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0 !important;
+            overflow: hidden !important;
+            min-height: 0;
+        }
+
+        /* Chat section: fill remaining height */
+        .chat-section {
+            flex: 1 !important;
+            height: auto !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Messages: scrollable, centered column like ChatGPT */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        /* Center each message row in the viewport */
+        .message {
+            max-width: 720px;
+            width: 100%;
+            align-self: center;
+        }
+
+        /* main-content no longer needed as a layout wrapper */
+        .main-content { display: contents; }
+
+        /* ── TOP BAR ──────────────────────────────────── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 52px;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+        .top-bar-left { display: flex; align-items: center; gap: 4px; }
+        .top-bar-right { display: flex; align-items: center; gap: 8px; }
+
+        /* Viz toggle button in top bar */
+        .viz-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-2);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .viz-toggle-btn:hover { border-color: rgba(99,102,241,0.5); color: var(--text); }
+        .viz-toggle-btn.open { border-color: var(--accent); color: var(--accent-light); background: var(--accent-glow); }
+
+        /* ── VIZ PANEL (replaces toggle bar) ─────────── */
+        /* Override results-section for full-width panel */
+        .results-section {
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-top: none !important;
+            border-bottom: 1px solid var(--border) !important;
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 16px 24px !important;
+        }
+
+        /* ── EMPTY STATE ──────────────────────────────── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 48px 24px 32px;
+            text-align: center;
+            min-height: 280px;
+        }
+        .empty-state-title {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.035em;
+            color: var(--text);
+            margin: 0 0 36px;
+            line-height: 1.2;
+        }
+        .empty-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            max-width: 580px;
+            width: 100%;
+            text-align: left;
+        }
+        .empty-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            cursor: pointer;
+            font-size: 0.83rem;
+            color: var(--text-2);
+            transition: border-color 0.2s, background 0.2s, color 0.15s;
+            line-height: 1.45;
+            font-family: inherit;
+            font-weight: 400;
+            text-align: left;
+        }
+        .empty-card:hover {
+            border-color: rgba(99,102,241,0.5);
+            background: var(--accent-glow);
+            color: var(--text);
+        }
+
+        /* ── INPUT ZONE ───────────────────────────────── */
+        .input-zone {
+            flex-shrink: 0;
+            padding: 12px 24px 20px;
+            background: var(--bg);
+        }
+        /* Pill input like ChatGPT */
+        .pill-input {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 8px 8px 8px 16px;
+            max-width: 720px;
+            margin: 0 auto;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .pill-input:focus-within {
+            border-color: rgba(99,102,241,0.5);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+        }
+        .pill-add-btn {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 300;
+            font-family: inherit; line-height: 1;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            align-self: flex-end;
+            margin-bottom: 2px;
+        }
+        .pill-add-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+        .pill-textarea {
+            flex: 1;
+            background: transparent;
+            border: none; outline: none;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--text);
+            resize: none;
+            min-height: 26px;
+            max-height: 160px;
+            line-height: 1.55;
+            padding: 4px 0;
+            overflow-y: auto;
+        }
+        .pill-textarea::placeholder { color: var(--text-muted); }
+        .pill-send-btn {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+            transition: background 0.15s, transform 0.12s;
+            flex-shrink: 0;
+            align-self: flex-end;
+            margin-bottom: 1px;
+        }
+        .pill-send-btn:hover:not(:disabled) { background: var(--accent-dark); transform: scale(1.08); }
+        .pill-send-btn:active:not(:disabled) { transform: scale(0.96); }
+        .pill-send-btn:disabled { background: var(--surface-3); cursor: not-allowed; }
+
+        /* Quick chips — centered below pill */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 0 0;
+            max-width: 720px;
+            margin: 0 auto;
+            justify-content: center;
+        }
+
+        /* ── EXAMPLES DROPDOWN ────────────────────────── */
+        .examples-dropdown { position: relative; }
+        .examples-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 12px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.78rem; font-weight: 500;
+            color: var(--text-2);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .examples-btn:hover { border-color: rgba(99,102,241,0.5); color: var(--text); }
+        .examples-btn.open { border-color: var(--accent); color: var(--accent-light); }
+        .examples-menu {
+            position: absolute; right: 0; top: calc(100% + 6px);
+            min-width: 290px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+            z-index: 200;
+            opacity: 0; transform: translateY(-4px);
+            pointer-events: none;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+        .examples-menu.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar expand tab hidden; ICI button in top bar takes its role -->
+    <button class="sidebar-expand-tab" id="sidebarExpandTab" title="Show sidebar" style="display:none!important;"></button>
+
+    <!-- ── LEFT: Chat History Panel ──────────────────────────────── -->
+    <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <span class="history-title">Chats</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+                <button class="new-chat-btn" id="newChatBtn">+ New</button>
+                <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Hide sidebar">‹</button>
+            </div>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="history-empty">No chats yet.<br>Start a conversation!</div>
+        </div>
+    </div>
+
+    <!-- ── RIGHT: Main ────────────────────────────────────────────── -->
+    <div class="main-wrapper">
+
+        <!-- Top bar: nav links + controls -->
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button class="ici-open-btn" id="iciOpenBtn" title="Open sidebar">ICI</button>
+                <a href="home.html" class="back-link">← Home</a>
+                <a href="index.html" class="back-link">Research</a>
+            </div>
+            <div class="top-bar-right">
+                <!-- Viz toggle (replaces old toggle bar) -->
+                <button class="viz-toggle-btn" id="vizToggleBar" title="Toggle data visualization">
+                    📊 Chart
+                    <span class="viz-badge" id="vizBadge" style="display:none;">New data</span>
+                    <span id="vizChevron" style="display:none;"></span>
+                </button>
+                <!-- Example questions dropdown -->
+                <div class="examples-dropdown">
+                    <button class="examples-btn" id="examplesBtn">Examples ▾</button>
+                    <div class="examples-menu" id="examplesMenu">
+                        <ul class="example-list" id="exampleList">
+                            <li data-query="How did legislation change after 2017?">How did legislation change after 2017?</li>
+                            <li data-query="Which counties have sanctuary policies?">Which counties have sanctuary policies?</li>
+                            <li data-query="What's the breakdown of law types?">What's the breakdown of law types?</li>
+                            <li data-query="Show me employment laws in Florida">Show me employment laws in Florida</li>
+                            <li data-query="Which states have the most 287(g) agreements?">Which states have the most 287(g) agreements?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collapsible data visualization panel -->
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h3 id="resultsTitle">Results</h3>
+                <button class="viz-hide-btn" id="vizHideBtn">Hide ✕</button>
+            </div>
+            <div class="results-chart"><canvas id="resultsChart"></canvas></div>
+            <div id="resultsTable"></div>
+        </div>
+
+        <!-- Chat area: fills remaining height -->
+        <div class="container">
+            <div class="main-content">
+                <div class="chat-section">
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Welcome / empty state -->
+                        <div class="empty-state" id="emptyState">
+                            <p class="empty-state-title">What would you like to explore?</p>
+                            <div class="empty-cards">
+                                <button class="empty-card" data-query="What are the main trends in immigration legislation since 2005?">What are the main trends in immigration legislation since 2005?</button>
+                                <button class="empty-card" data-query="Which states have the most immigrant-friendly policies?">Which states have the most immigrant-friendly policies?</button>
+                                <button class="empty-card" data-query="Explain the Trump Effect on immigration legislation in 2017">Explain the Trump Effect on immigration legislation in 2017</button>
+                                <button class="empty-card" data-query="Compare sanctuary policies in California vs Texas">Compare sanctuary policies in California vs Texas</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input zone: pill box + quick chips -->
+        <div class="input-zone">
+            <div class="pill-input">
+                <button class="pill-add-btn" title="Add context" tabindex="-1">+</button>
+                <textarea class="pill-textarea" id="chatInput" placeholder="Ask about immigration legislation..." rows="1"></textarea>
+                <button class="pill-send-btn" id="sendBtn" title="Send">↑</button>
+            </div>
+            <div class="suggestions" id="quickChips"></div>
+        </div>
+
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-card">
+            <p class="modal-title">Delete chat?</p>
+            <div class="modal-body">
+                <span id="deleteModalChatName"></span>
+                <p class="modal-warning">This chat can't be recovered once deleted.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-cancel-btn" id="deleteCancelBtn">Cancel</button>
+                <button class="modal-delete-btn" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // =========================================================================
+    // ICI AI ASSISTANT — Client-side orchestration layer
+    // =========================================================================
+    //
+    // This page combines three things:
+    //
+    //   1. DATA LAYER — loads ici_data.json and pre-aggregates statistics for
+    //      each query so Claude always answers from real database numbers.
+    //
+    //   2. CONVERSATION LAYER — maintains a multi-turn message history in
+    //      memory and persists it to SQLite via the Node.js server, so chats
+    //      survive page refreshes.
+    //
+    //   3. RENDERING LAYER — converts Claude's markdown responses to HTML,
+    //      draws Chart.js visualisations, and manages the collapsible UI panels.
+    //
+    // Request flow for each user message:
+    //   User types → getDataContext() aggregates relevant stats from ici_data.json
+    //   → sendToGPT() builds system prompt + conversation history → POST /api/chat
+    //   → server appends API key + forwards to Claude → response comes back
+    //   → formatResponse() converts markdown to HTML → addMessage() renders it
+    //   → showResultsVisualization() draws the chart
+    // =========================================================================
+
+    // Dark theme defaults applied to every Chart.js chart on this page
+    Chart.defaults.color = '#A1A1AA';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GLOBAL STATE
+    //
+    // DATA                — full contents of ici_data.json, loaded once at startup
+    // currentResults      — the last filtered law set (used by the chart renderer)
+    // resultsChart        — active Chart.js instance; must be destroyed before
+    //                       a new chart is drawn on the same canvas element
+    // conversationHistory — array of { role, content } objects sent to Claude on
+    //                       every request to enable multi-turn memory. Grows with
+    //                       each exchange and is cleared when starting a new chat.
+    // currentChatId       — UUID of the chat currently open; null if no chat is
+    //                       active (messages will not be persisted to SQLite)
+    // ─────────────────────────────────────────────────────────────────────────
+    let DATA = { stateLaws: [], localLaws: [], laws287g: [], typeMap: {}, metadata: {} };
+    let currentResults  = [];
+    let resultsChart    = null;
+    let conversationHistory = [];
+    let currentChatId   = null;
+
+    // ── Default & contextual suggestions ────────────────────────────────────
+    const DEFAULT_SUGGESTIONS = [
+        { label: 'Trends',         query: 'What are the main trends in immigration legislation since 2005?' },
+        { label: 'Friendly States',query: 'Which states have the most immigrant-friendly policies?' },
+        { label: 'Trump Effect',   query: 'Explain the Trump Effect on immigration legislation' },
+        { label: 'CA vs TX',       query: 'Compare sanctuary policies in California vs Texas' },
+        { label: 'Law Types',      query: 'What types of laws are most common?' },
+        { label: 'Policing Laws',  query: 'Analyze the policing and enforcement laws' },
+    ];
+
+    const STATE_NAMES = {
+        california:'CA', texas:'TX', florida:'FL', 'new york':'NY', arizona:'AZ',
+        illinois:'IL', georgia:'GA', colorado:'CO', washington:'WA', oregon:'OR',
+        virginia:'VA', maryland:'MD', massachusetts:'MA', 'new jersey':'NJ',
+        pennsylvania:'PA', ohio:'OH', michigan:'MI', minnesota:'MN', wisconsin:'WI',
+        nevada:'NV', 'north carolina':'NC', tennessee:'TN', utah:'UT', iowa:'IA',
+    };
+
+    function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function generateContextualSuggestions() {
+        if (conversationHistory.length === 0) return DEFAULT_SUGGESTIONS;
+        const allText = conversationHistory.map(m => m.content).join(' ').toLowerCase();
+        const sugs = [];
+        const used = new Set();
+
+        // Detect mentioned states
+        const mentioned = [];
+        for (const [name, code] of Object.entries(STATE_NAMES)) {
+            if (allText.includes(name) || allText.includes(' ' + code.toLowerCase() + ' ')) {
+                mentioned.push({ name, code });
+            }
+        }
+
+        if (mentioned.length >= 1) {
+            const s = mentioned[0];
+            const sN = capitalize(s.name);
+            sugs.push({ label: `${s.code} Trends`,  query: `Show ${sN} legislation trends over time` });
+            sugs.push({ label: `${s.code} Cities`,  query: `Which cities and counties in ${sN} have sanctuary policies?` });
+            if (mentioned.length >= 2) {
+                const s2 = mentioned[1];
+                sugs.push({ label: `${s.code} vs ${s2.code}`, query: `Compare ${sN} and ${capitalize(s2.name)} policing laws by year` });
+            } else {
+                sugs.push({ label: `${s.code} vs TX`, query: `Compare ${sN} and Texas immigration policies in detail` });
+            }
+            used.add(sugs[sugs.length-1].query);
+            used.add(sugs[sugs.length-2].query);
+            used.add(sugs[sugs.length-3].query);
+        }
+
+        if (allText.includes('trump') || allText.includes('2017') || allText.includes('spike')) {
+            if (!used.has('q1')) { sugs.push({ label: 'By State 2017', query: 'Which states saw the biggest spike in legislation in 2017?' }); used.add('q1'); }
+            if (!used.has('q2')) { sugs.push({ label: 'Pre vs Post',  query: 'Compare pre-2017 and post-2017 legislative patterns across states' }); used.add('q2'); }
+        }
+
+        if (allText.includes('polic') || allText.includes('sanctuary') || allText.includes('enforcement')) {
+            if (!used.has('q3')) { sugs.push({ label: 'Top Sanctuaries', query: 'Which cities have the strongest sanctuary policies?' }); used.add('q3'); }
+            if (!used.has('q4')) { sugs.push({ label: '287(g) Map',     query: 'Which states have the most 287(g) enforcement agreements?' }); used.add('q4'); }
+        }
+
+        if (allText.includes('trend') || allText.includes('over time') || allText.includes('history')) {
+            if (!used.has('q5')) { sugs.push({ label: 'Local vs State', query: 'How do local and state legislation trends compare over time?' }); used.add('q5'); }
+        }
+
+        if (allText.includes('employment') || allText.includes('worker')) {
+            if (!used.has('q6')) { sugs.push({ label: 'Employment',  query: 'Which states have the most employment-related immigration laws?' }); used.add('q6'); }
+        }
+
+        // Fill with defaults
+        for (const d of DEFAULT_SUGGESTIONS) {
+            if (sugs.length >= 6) break;
+            if (!used.has(d.query)) { sugs.push(d); used.add(d.query); }
+        }
+
+        return sugs.slice(0, 6);
+    }
+
+    function updateDynamicSuggestions() {
+        const sugs = generateContextualSuggestions();
+
+        // Update quick chips below the input
+        const chipsEl = document.getElementById('quickChips');
+        chipsEl.innerHTML = sugs.map(s =>
+            `<button class="suggestion" data-query="${s.query.replace(/"/g,'&quot;')}">${s.label}</button>`
+        ).join('');
+        attachChipListeners();
+
+        // Update sidebar example list
+        const exListEl = document.getElementById('exampleList');
+        exListEl.innerHTML = sugs.map(s =>
+            `<li data-query="${s.query.replace(/"/g,'&quot;')}">${s.query}</li>`
+        ).join('');
+        attachExampleListeners();
+    }
+
+    function attachChipListeners() {
+        document.querySelectorAll('#quickChips .suggestion').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('chatInput').value = btn.dataset.query;
+                document.getElementById('chatInput').focus();
+            });
+        });
+    }
+
+    function attachExampleListeners() {
+        document.querySelectorAll('#exampleList li').forEach(li => {
+            li.addEventListener('click', () => {
+                document.getElementById('chatInput').value = li.dataset.query;
+                document.getElementById('chatInput').focus();
+            });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHAT HISTORY — SQLite persistence via the Node server
+    //
+    // Why persist to SQLite and not just localStorage?
+    //   localStorage is limited to ~5 MB and is specific to one browser profile.
+    //   SQLite on the server persists across browsers, devices on the same
+    //   machine, and survives clearing browser data. The Node server exposes
+    //   a small REST API (/api/chats/*) for CRUD operations on chat sessions.
+    //
+    // On each page load, loadChatList() fetches all saved chats and renders
+    // them in the sidebar. Clicking a chat calls loadChatFromDB() which
+    // replays its messages into the UI and rebuilds conversationHistory so
+    // the next AI call has full context of the previous exchange.
+    // ─────────────────────────────────────────────────────────────────────────
+    async function loadChatList() {
+        try {
+            const resp = await fetch('/api/chats');
+            const chats = await resp.json();
+            renderChatList(chats);
+        } catch { /* server may not be running */ }
+    }
+
+    function renderChatList(chats) {
+        const el = document.getElementById('historyList');
+        if (!chats.length) {
+            el.innerHTML = '<div class="history-empty">No chats yet.<br>Start a conversation!</div>';
+            return;
+        }
+        el.innerHTML = chats.map(c => {
+            const isActive = c.id === currentChatId;
+            const preview  = c.preview ? c.preview.substring(0, 60) : '';
+            return `
+            <div class="chat-item ${isActive ? 'active' : ''}" data-id="${c.id}">
+                <span class="chat-item-name" title="${c.name}">${c.name}</span>
+                <div class="chat-item-actions">
+                    <button class="chat-action-btn rename-btn" data-id="${c.id}" title="Rename">✎</button>
+                    <button class="chat-action-btn delete-btn" data-id="${c.id}" data-name="${c.name.replace(/"/g,'&quot;')}" title="Delete">✕</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Click to load
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.classList.contains('chat-action-btn')) return;
+                loadChatFromDB(item.dataset.id);
+            });
+        });
+
+        // Rename
+        document.querySelectorAll('.rename-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startRename(btn.dataset.id);
+            });
+        });
+
+        // Delete — show confirmation modal
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showDeleteModal(btn.dataset.id, btn.dataset.name);
+            });
+        });
+    }
+
+    async function createNewChat() {
+        try {
+            const resp = await fetch('/api/chats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'New Chat' }) });
+            const chat = await resp.json();
+            currentChatId = chat.id;
+            localStorage.setItem('ici-active-chat', currentChatId);
+            return chat.id;
+        } catch {
+            currentChatId = 'local-' + Date.now();
+            localStorage.setItem('ici-active-chat', currentChatId);
+            return currentChatId;
+        }
+    }
+
+    async function loadChatFromDB(chatId) {
+        try {
+            const resp = await fetch(`/api/chats/${chatId}`);
+            if (!resp.ok) return;
+            const chat = await resp.json();
+
+            // Reset state
+            currentChatId = chatId;
+            localStorage.setItem('ici-active-chat', currentChatId);
+            conversationHistory = [];
+            currentResults = [];
+            if (resultsChart) { resultsChart.destroy(); resultsChart = null; }
+            pendingVizContext = null;
+            setVizOpen(false);
+
+            // Clear messages and show welcome if no history
+            const msgEl = document.getElementById('chatMessages');
+            msgEl.innerHTML = '';
+
+            if (!chat.messages || chat.messages.length === 0) {
+                msgEl.innerHTML = getEmptyStateHTML();
+                attachEmptyCardListeners();
+            } else {
+                // Replay messages into UI + rebuild conversationHistory
+                for (const msg of chat.messages) {
+                    conversationHistory.push({ role: msg.role, content: msg.content });
+                    if (msg.role === 'user') {
+                        addMessage('user', msg.content);
+                    } else {
+                        addMessage('bot', formatResponse(msg.content));
+                    }
+                }
+            }
+
+            updateDynamicSuggestions();
+            await loadChatList(); // refresh active state
+        } catch (err) {
+            console.error('Failed to load chat:', err);
+        }
+    }
+
+    function startNewChat() {
+        currentChatId = null;
+        localStorage.removeItem('ici-active-chat');
+        conversationHistory = [];
+        currentResults = [];
+        if (resultsChart) { resultsChart.destroy(); resultsChart = null; }
+        pendingVizContext = null;
+        setVizOpen(false);
+        document.getElementById('chatMessages').innerHTML = getEmptyStateHTML();
+        attachEmptyCardListeners();
+        document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+        updateDynamicSuggestions();
+        document.getElementById('chatInput').focus();
+    }
+
+    async function deleteChat(chatId) {
+        try {
+            await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+            if (currentChatId === chatId) startNewChat();
+            await loadChatList();
+        } catch { /* offline mode */ }
+    }
+
+    function startRename(chatId) {
+        const item = document.querySelector(`.chat-item[data-id="${chatId}"]`);
+        if (!item) return;
+        const nameEl = item.querySelector('.chat-item-name');
+        const currentName = nameEl.textContent;
+
+        const input = document.createElement('input');
+        input.className = 'chat-item-input';
+        input.value = currentName;
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        item.querySelector('.chat-item-actions').style.display = 'none';
+
+        const finish = async () => {
+            const newName = input.value.trim() || currentName;
+            try {
+                await fetch(`/api/chats/${chatId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+            } catch { /* offline */ }
+            await loadChatList();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); finish(); }
+            if (e.key === 'Escape') { loadChatList(); }
+        });
+        input.addEventListener('blur', finish);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DATA LOADING
+    //
+    // ici_data.json is fetched once and cached in the DATA global. It is never
+    // re-fetched during a session. All subsequent operations (context building,
+    // charting) read from this in-memory object.
+    // ─────────────────────────────────────────────────────────────────────────
+    async function loadData() {
+        try {
+            const response = await fetch('ici_data.json');
+            DATA = await response.json();
+            initializeApp();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            addMessage('bot', 'Error loading data. Please make sure ici_data.json is available.');
+        }
+    }
+
+    function initializeApp() {
+        updateDynamicSuggestions();
+        const savedId = localStorage.getItem('ici-active-chat');
+        if (savedId) loadChatFromDB(savedId);
+    }
+
+    // ── Message helpers ──────────────────────────────────────────────────────
+    function addMessage(type, content) {
+        const es = document.getElementById('emptyState');
+        if (es) es.style.display = 'none';
+        const messagesDiv = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = `<div class="message-content">${content}</div>`;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+        const div = document.createElement('div');
+        div.className = 'message bot';
+        div.id = 'typingIndicator';
+        div.innerHTML = `<div class="message-content typing-indicator"><span></span><span></span><span></span></div>`;
+        document.getElementById('chatMessages').appendChild(div);
+        document.getElementById('chatMessages').scrollTop = 99999;
+    }
+
+    function removeTypingIndicator() {
+        document.getElementById('typingIndicator')?.remove();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DATA CONTEXT BUILDER
+    //
+    // Before every Claude API call, this function scans the user's query,
+    // identifies which slice of the database is relevant, and returns a
+    // pre-aggregated summary object that gets embedded in the system prompt.
+    //
+    // Why not send the raw JSON to Claude?
+    //   ici_data.json is ~1.7 MB. Claude's context window is large but not
+    //   infinite, and sending raw records for every request would be slow and
+    //   expensive. Instead we send aggregated statistics (counts by year, by
+    //   state, by type) plus a small sample of individual records. Claude can
+    //   then answer accurately from real numbers without needing every row.
+    //
+    // Query detection logic:
+    //   The function uses simple string matching to detect the user's intent:
+    //   - State names / codes → filter to that state's laws
+    //   - Years → filter to that year
+    //   - "compare" + two states → filter to both states, set comparisonStates
+    //   - "sanctuary" / "friendly" → positive laws only
+    //   - "policing" / "enforcement" → type === 'P' only
+    //   - "employment" → type === 'E' only
+    //   If no filter matches, the full dataset is included.
+    // ─────────────────────────────────────────────────────────────────────────
+    function getDataContext(query) {
+        const q = query.toLowerCase();
+        const allLaws = [...DATA.stateLaws.map(l => ({...l, source: 'state'})),
+                        ...DATA.localLaws.map(l => ({...l, source: 'local'})),
+                        ...(DATA.laws287g || []).map(l => ({...l, source: '287g'}))];
+
+        let relevantData = [];
+        let summary = {};
+
+        const validStateCodes = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
+                                 'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+                                 'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
+                                 'VA','WA','WV','WI','WY','DC','PR'];
+
+        const stateNameMap = {
+            'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+            'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+            'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+            'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+            'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+            'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+            'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+            'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+            'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+            'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
+            'puerto rico': 'PR', 'district of columbia': 'DC'
+        };
+
+        let detectedStates = [];
+        for (const [name, code] of Object.entries(stateNameMap)) {
+            if (q.includes(name)) detectedStates.push(code);
+        }
+        const codeMatches = q.matchAll(/(?:in|for|from|of|vs|versus|and|,)\s+([a-z]{2})\b/gi);
+        for (const match of codeMatches) {
+            if (validStateCodes.includes(match[1].toUpperCase()) && !detectedStates.includes(match[1].toUpperCase())) {
+                detectedStates.push(match[1].toUpperCase());
+            }
+        }
+
+        const isComparison = q.includes('compare') || q.includes('vs') || q.includes('versus') ||
+                            (q.includes('and') && detectedStates.length >= 2) || detectedStates.length >= 2;
+
+        if (isComparison && detectedStates.length >= 2) {
+            relevantData = allLaws.filter(l => detectedStates.includes(l.state));
+            summary.comparisonStates = detectedStates;
+            summary.filterType = 'State Comparison';
+        } else if (detectedStates.length > 0) {
+            relevantData = allLaws.filter(l => l.state === detectedStates[0]);
+            summary.filterState = detectedStates[0];
+        }
+
+        const yearMatch = q.match(/\b(20\d{2}|19\d{2})\b/);
+        if (yearMatch) {
+            const year = parseInt(yearMatch[1]);
+            if (relevantData.length === 0) relevantData = allLaws.filter(l => l.year === year);
+            else relevantData = relevantData.filter(l => l.year === year);
+            summary.filterYear = year;
+        }
+
+        const isRestrictiveQuery = q.includes('restrictive') || q.includes('unfriendly') ||
+            q.includes('anti-immigrant') || q.includes('anti immigrant') ||
+            (q.includes('negative') && q.includes('law')) || q.includes('harsh');
+
+        const isSanctuaryQuery = !isRestrictiveQuery && (q.includes('sanctuary') ||
+            (q.includes('immigrant') && q.includes('friendly') && !q.includes('unfriendly')) ||
+            (q.includes('pro') && q.includes('immigrant')) || q.includes('welcoming'));
+
+        if (!isComparison && isRestrictiveQuery) {
+            if (relevantData.length === 0) relevantData = allLaws;
+            relevantData = relevantData.filter(l => l.posNeg === 0);
+            summary.filterType = 'Restrictive/Negative';
+        } else if (!isComparison && isSanctuaryQuery) {
+            if (relevantData.length === 0) relevantData = allLaws;
+            relevantData = relevantData.filter(l => l.posNeg === 1);
+            summary.filterType = 'Sanctuary/Positive';
+        }
+
+        if (!isComparison || !q.includes('sanctuary')) {
+            if (q.includes('polic') || q.includes('enforcement') || q.includes('detainer') || q.includes('287')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'P');
+                summary.filterType = 'Policing/Enforcement';
+            } else if (q.includes('employment') || q.includes('worker') || q.includes('job')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'E');
+                summary.filterType = 'Employment';
+            } else if (q.includes('benefit')) {
+                if (relevantData.length === 0) relevantData = allLaws;
+                relevantData = relevantData.filter(l => l.type === 'B');
+                summary.filterType = 'Benefits';
+            }
+        }
+
+        if (relevantData.length === 0) relevantData = allLaws;
+
+        const positive   = relevantData.filter(l => l.posNeg === 1).length;
+        const negative   = relevantData.filter(l => l.posNeg === 0).length;
+        const stateLaws  = relevantData.filter(l => l.source === 'state').length;
+        const localLaws  = relevantData.filter(l => l.source === 'local').length;
+        const laws287g   = relevantData.filter(l => l.source === '287g').length;
+
+        const byYear = {};
+        relevantData.forEach(l => {
+            if (l.year) {
+                if (!byYear[l.year]) byYear[l.year] = { positive: 0, negative: 0 };
+                if (l.posNeg === 1) byYear[l.year].positive++;
+                else byYear[l.year].negative++;
+            }
+        });
+
+        const byState = {};
+        relevantData.forEach(l => {
+            if (l.state) {
+                if (!byState[l.state]) byState[l.state] = { positive: 0, negative: 0, total: 0, stateLevelPositive: 0, stateLevelNegative: 0, localPositive: 0, localNegative: 0 };
+                byState[l.state].total++;
+                if (l.posNeg === 1) {
+                    byState[l.state].positive++;
+                    if (l.source === 'state') byState[l.state].stateLevelPositive++;
+                    else byState[l.state].localPositive++;
+                } else {
+                    byState[l.state].negative++;
+                    if (l.source === 'state') byState[l.state].stateLevelNegative++;
+                    else byState[l.state].localNegative++;
+                }
+            }
+        });
+
+        const byType = {};
+        relevantData.forEach(l => { const t = l.type || 'Unknown'; if (!byType[t]) byType[t] = 0; byType[t]++; });
+
+        let sampleLaws = [];
+        if (summary.comparisonStates?.length >= 2) {
+            summary.comparisonStates.forEach(sc => {
+                const sl = relevantData.filter(l => l.state === sc);
+                sampleLaws.push(...sl.filter(l => l.posNeg === 1).slice(0, 3).map(l => ({ year: l.year, state: l.state, county: l.county||'', city: l.city||'', source: l.source, type: l.type, direction: 'Positive/Sanctuary', description: l.description?.substring(0,150)||'N/A' })));
+                sampleLaws.push(...sl.filter(l => l.posNeg === 0).slice(0, 3).map(l => ({ year: l.year, state: l.state, county: l.county||'', city: l.city||'', source: l.source, type: l.type, direction: 'Restrictive', description: l.description?.substring(0,150)||'N/A' })));
+            });
+        } else {
+            const max = summary.filterState ? 25 : 10;
+            sampleLaws = relevantData.slice(0, max).map(l => ({ year: l.year, state: l.state, county: l.county||'', city: l.city||'', source: l.source, type: l.type, direction: l.posNeg===1?'Positive':'Restrictive', description: l.description?.substring(0,150)||'N/A' }));
+        }
+
+        currentResults = relevantData;
+
+        let stateComparison = null;
+        if (summary.comparisonStates?.length >= 2) {
+            stateComparison = {};
+            summary.comparisonStates.forEach(sc => {
+                const sl = relevantData.filter(l => l.state === sc);
+                stateComparison[sc] = { total: sl.length, positive: sl.filter(l => l.posNeg===1).length, negative: sl.filter(l => l.posNeg===0).length, byType: {} };
+                sl.forEach(l => { const t = l.type||'Unknown'; if (!stateComparison[sc].byType[t]) stateComparison[sc].byType[t]={positive:0,negative:0}; if(l.posNeg===1) stateComparison[sc].byType[t].positive++; else stateComparison[sc].byType[t].negative++; });
+            });
+        }
+
+        let localities = null;
+        if (summary.filterState || summary.comparisonStates?.length > 0) {
+            localities = {};
+            relevantData.filter(l => l.source==='local').forEach(l => {
+                const loc = l.city || l.county || 'Unknown';
+                if (loc && loc !== 'Unknown') {
+                    if (!localities[loc]) localities[loc] = { positive:0, negative:0, type: l.city?'city':'county', state: l.state };
+                    if (l.posNeg===1) localities[loc].positive++; else localities[loc].negative++;
+                }
+            });
+        }
+
+        return { totalLaws: relevantData.length, positive, negative, stateLaws, localLaws, laws287g, byYear, byState, localities, byType, typeMap: DATA.typeMap, sampleLaws, filters: summary, yearRange: DATA.metadata.yearRange, stateComparison };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CLAUDE API CALL — multi-turn conversation management
+    //
+    // How multi-turn works:
+    //   Each call sends the FULL conversation history (conversationHistory) plus
+    //   the new user message to Claude. Claude sees everything that was said
+    //   before and can reference prior answers. The history is maintained
+    //   client-side in the conversationHistory array and grows with each turn.
+    //
+    // System prompt strategy:
+    //   The system prompt is rebuilt on every call with fresh data context from
+    //   getDataContext(). This means if the user's question shifts from
+    //   "California laws" to "compare Texas and Florida", the next call will
+    //   include the Texas/Florida data even though the conversation already has
+    //   California context in it. Claude always has the right numbers.
+    //
+    // The function is named sendToGPT() for historical reasons — it was
+    // originally written for OpenAI and later migrated to the Anthropic API.
+    // ─────────────────────────────────────────────────────────────────────────
+    async function sendToGPT(query) {
+        const dataContext = getDataContext(query);
+
+        const systemPrompt = `You are an expert analyst for the Immigrant Climate Index (ICI) database. You have access to data about ${dataContext.totalLaws} immigration-related laws in the United States.
+
+The ICI measures the regulatory "climate" for immigrants at federal, state, county, and city levels through a quantitative scoring system:
+- Positive laws (posNeg=1): Immigrant-friendly legislation, also known as "sanctuary laws"
+- Negative/Restrictive laws (posNeg=0): Restrictive/anti-immigrant legislation
+
+The database contains THREE categories of laws:
+- State laws: legislation passed at the state level
+- Local laws: city and county ordinances and policies
+- 287(g) agreements: formal agreements between local law enforcement agencies and ICE
+
+IMPORTANT RULES:
+1. "Sanctuary laws" = positive/immigrant-friendly laws (posNeg=1).
+2. "Restrictive laws" = negative laws (posNeg=0).
+3. Always report actual numbers even if one state has 0.
+4. The byState data includes ALL laws within each state.
+5. Use the localities object to name specific cities/counties.
+6. Keep responses concise but informative. Use markdown for readability.
+
+Law Types: ${Object.entries(DATA.typeMap).map(([k,v]) => `${k}=${v}`).join(', ')}
+
+Current data context:
+${JSON.stringify(dataContext, null, 2)}`;
+
+        // Build full multi-turn history for Claude
+        const fullMessages = [
+            { role: 'system', content: systemPrompt },
+            ...conversationHistory,
+            { role: 'user', content: query }
+        ];
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages:       fullMessages,
+                chatId:         currentChatId,
+                newUserContent: query
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || error.error || 'API request failed');
+        }
+
+        const data = await response.json();
+        return { text: data.content[0].text, dataContext };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARKDOWN FORMATTER
+    //
+    // Claude returns plain markdown text. The browser needs HTML. This function
+    // converts the most common markdown constructs to HTML so responses render
+    // with proper formatting (headers, tables, bullet lists, code blocks).
+    //
+    // Why a custom parser instead of a library like marked.js?
+    //   marked.js adds ~40 KB to the bundle. Our responses use a predictable
+    //   subset of markdown (headers, bold, tables, code blocks, lists) that
+    //   can be handled with ~30 lines of regex. Custom also means we can style
+    //   exactly how we want without fighting library defaults.
+    //
+    // Processing order matters — each step must complete before the next to
+    // avoid double-processing (e.g., inline code must be extracted before bold
+    // processing so `**text**` inside a code span is not made bold):
+    //   1. Extract ``` blocks first (protect them from all other processing)
+    //   2. Parse markdown tables (before bold, since cells may contain **)
+    //   3. Parse headers, hr, bold, italic, inline code
+    //   4. Parse lists (ul and ol)
+    //   5. Wrap remaining plain text in <p> tags
+    //   6. Restore extracted code blocks
+    // ─────────────────────────────────────────────────────────────────────────
+    function formatResponse(text) {
+        // 1. Protect triple-backtick code blocks first
+        const codeBlocks = [];
+        text = text.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => {
+            const idx = codeBlocks.length;
+            codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`);
+            return `\x00CODE${idx}\x00`;
+        });
+
+        // 2. Markdown tables
+        text = text.replace(/(?:(?:\|[^\n]+\|)\n?)+/g, (block) => {
+            const rows = block.trim().split('\n');
+            const isSep = r => !/[a-zA-Z0-9]/.test(r) && r.includes('|') && r.includes('-');
+            const sepIdx = rows.findIndex(isSep);
+            let html = '<table>';
+            if (sepIdx === 1) {
+                const hCells = rows[0].split('|').slice(1, -1);
+                html += '<thead><tr>' + hCells.map(c => `<th>${c.trim()}</th>`).join('') + '</tr></thead><tbody>';
+                for (let i = 2; i < rows.length; i++) {
+                    if (!rows[i].trim()) continue;
+                    const cells = rows[i].split('|').slice(1, -1);
+                    html += '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+                }
+            } else {
+                html += '<tbody>';
+                rows.filter(r => r.trim() && !isSep(r)).forEach(row => {
+                    const cells = row.split('|').slice(1, -1);
+                    html += '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+                });
+            }
+            html += '</tbody></table>';
+            return html;
+        });
+
+        // 3. Headers
+        text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+        // 4. Horizontal rules
+        text = text.replace(/^---+$/gm, '<hr>');
+
+        // 5. Bold and italic
+        text = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+        // 6. Inline code
+        text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+        // 7. Unordered lists
+        text = text.replace(/((?:^[ \t]*[-*] .+(?:\n|$))+)/gm, (block) => {
+            const items = block.trim().split('\n').map(l =>
+                `<li>${l.replace(/^[ \t]*[-*] /, '')}</li>`).join('');
+            return `<ul>${items}</ul>`;
+        });
+
+        // 8. Ordered lists
+        text = text.replace(/((?:^\d+\. .+(?:\n|$))+)/gm, (block) => {
+            const items = block.trim().split('\n').map(l =>
+                `<li>${l.replace(/^\d+\. /, '')}</li>`).join('');
+            return `<ol>${items}</ol>`;
+        });
+
+        // 9. Wrap plain text blocks in <p>, skip already-HTML blocks
+        const parts = text.split(/\n{2,}/);
+        const wrapped = parts.map(b => {
+            const t = b.trim();
+            if (!t) return '';
+            if (/^<(?:h[1-6]|ul|ol|pre|table|hr|blockquote)/.test(t) || t.includes('\x00CODE')) return t;
+            return '<p>' + t.replace(/\n/g, '<br>') + '</p>';
+        }).join('\n');
+
+        // 10. Restore code blocks
+        return wrapped.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[+i]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // VISUALISATION TOGGLE
+    //
+    // The data visualisation panel (chart + table) is collapsible. Its open/
+    // closed state is tracked in `vizOpen`. The toggle bar and the "Hide ✕"
+    // button inside the panel both call setVizOpen() to keep state consistent.
+    //
+    // When AI data arrives via showResultsVisualization(), the panel opens
+    // automatically so the user sees the chart. After that, the user can
+    // collapse it manually if they want more reading space.
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── Viz toggle logic ─────────────────────────────────────────────────────
+    let vizOpen = false;
+
+    function setVizOpen(open) {
+        vizOpen = open;
+        const section = document.getElementById('resultsSection');
+        const bar     = document.getElementById('vizToggleBar');
+        const badge   = document.getElementById('vizBadge');
+        if (open) {
+            section.classList.add('active');
+            bar.classList.add('open');
+            badge.style.display = 'none';
+        } else {
+            section.classList.remove('active');
+            bar.classList.remove('open');
+        }
+    }
+
+    let pendingVizContext = null;
+
+    document.getElementById('vizToggleBar').addEventListener('click', () => {
+        const opening = !vizOpen;
+        setVizOpen(opening);
+        if (opening && pendingVizContext) {
+            renderViz(pendingVizContext);
+        }
+    });
+
+    document.getElementById('vizHideBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        setVizOpen(false);
+    });
+
+    // ── Results visualization ────────────────────────────────────────────────
+    // Save context + show badge; chart only renders when user opens the panel.
+    function showResultsVisualization(dataContext) {
+        if (dataContext.totalLaws < 2) return;
+        pendingVizContext = dataContext;
+        document.getElementById('vizBadge').style.display = 'inline-flex';
+        updateResultsTable(currentResults.slice(0, 50));
+    }
+
+    function renderViz(dataContext) {
+        if (!dataContext) return;
+        document.getElementById('resultsTitle').textContent =
+            `Data: ${dataContext.totalLaws} laws` +
+            (dataContext.filters.filterState ? ` in ${dataContext.filters.filterState}` : '') +
+            (dataContext.filters.filterYear  ? ` (${dataContext.filters.filterYear})`   : '');
+
+        if (resultsChart) resultsChart.destroy();
+        const ctx   = document.getElementById('resultsChart').getContext('2d');
+        const years = Object.keys(dataContext.byYear).sort();
+
+        if (years.length > 3) {
+            resultsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { label: 'Positive',    data: years.map(y => dataContext.byYear[y].positive),  borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true },
+                        { label: 'Restrictive', data: years.map(y => dataContext.byYear[y].negative), borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.12)',   fill: true },
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+            });
+        } else {
+            const states = Object.keys(dataContext.byState).sort((a,b) => (dataContext.byState[b].positive + dataContext.byState[b].negative) - (dataContext.byState[a].positive + dataContext.byState[a].negative)).slice(0, 15);
+            resultsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: states,
+                    datasets: [
+                        { label: 'Positive',    data: states.map(s => dataContext.byState[s].positive),  backgroundColor: 'rgba(16,185,129,0.75)' },
+                        { label: 'Restrictive', data: states.map(s => dataContext.byState[s].negative), backgroundColor: 'rgba(239,68,68,0.75)' },
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+    }
+
+    function updateResultsTable(laws) {
+        const div = document.getElementById('resultsTable');
+        let html = `<table><thead><tr><th>Year</th><th>State</th><th>Type</th><th>Direction</th><th>Description</th></tr></thead><tbody>`;
+        laws.forEach(law => {
+            const badge = law.posNeg === 1
+                ? '<span class="positive-badge">Positive</span>'
+                : '<span class="negative-badge">Restrictive</span>';
+            const desc = law.description ? law.description.substring(0, 100) + '…' : '-';
+            html += `<tr><td>${law.year||'-'}</td><td>${law.state||'-'}</td><td>${law.type||'-'}</td><td>${badge}</td><td class="truncate" title="${law.description||''}">${desc}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        if (currentResults.length > 50) {
+            html += `<p style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;">Showing 50 of ${currentResults.length} results</p>`;
+        }
+        div.innerHTML = html;
+    }
+
+    // ── Send handler ─────────────────────────────────────────────────────────
+    async function handleSend() {
+        const input = document.getElementById('chatInput');
+        const query = input.value.trim();
+        if (!query) return;
+
+        // Auto-create chat if none exists
+        if (!currentChatId) {
+            await createNewChat();
+        }
+
+        addMessage('user', query);
+        input.value = '';
+        input.style.height = 'auto';
+        input.disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+        addTypingIndicator();
+
+        try {
+            const result = await sendToGPT(query);
+            removeTypingIndicator();
+            addMessage('bot', formatResponse(result.text));
+
+            // Update multi-turn memory
+            conversationHistory.push({ role: 'user',      content: query });
+            conversationHistory.push({ role: 'assistant', content: result.text });
+
+            showResultsVisualization(result.dataContext);
+            updateDynamicSuggestions();
+            loadChatList(); // refresh sidebar (non-blocking)
+        } catch (error) {
+            removeTypingIndicator();
+            addMessage('bot', `<strong>Error:</strong> ${error.message}. Please try again.`);
+        } finally {
+            input.disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+    }
+
+    // ── Event listeners ──────────────────────────────────────────────────────
+    document.getElementById('sendBtn').addEventListener('click', handleSend);
+
+    document.getElementById('chatInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    });
+
+    document.getElementById('newChatBtn').addEventListener('click', startNewChat);
+
+    // Quick chips: fill input, focus — do NOT auto-send
+    attachChipListeners();
+    attachExampleListeners();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SIDEBAR TOGGLE — collapse / expand the chat history panel
+    //
+    // The sidebar is a fixed-position element (220px wide). Collapsing it
+    // slides it off-screen with a CSS transform (translateX(-220px)) and
+    // removes the corresponding margin-left from .main-wrapper, so the chat
+    // area expands to fill the full viewport width.
+    //
+    // The preference is saved to localStorage so it persists across page loads.
+    // ─────────────────────────────────────────────────────────────────────────
+    function setSidebarCollapsed(collapsed) {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        localStorage.setItem('ici-sidebar', collapsed ? '0' : '1');
+    }
+
+    document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
+        setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+    });
+
+    document.getElementById('iciOpenBtn').addEventListener('click', () => {
+        setSidebarCollapsed(false);
+    });
+
+    if (localStorage.getItem('ici-sidebar') === '0') setSidebarCollapsed(true);
+
+    // ── DELETE MODAL ─────────────────────────────────────────────────────────
+    let _pendingDeleteId = null;
+    const _deleteModal      = document.getElementById('deleteModal');
+    const _deleteNameEl     = document.getElementById('deleteModalChatName');
+    const _deleteCancelBtn  = document.getElementById('deleteCancelBtn');
+    const _deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+
+    function showDeleteModal(chatId, chatName) {
+        _pendingDeleteId = chatId;
+        _deleteNameEl.innerHTML = chatName
+            ? `This will permanently delete <strong>${chatName}</strong>.`
+            : 'This will permanently delete this chat.';
+        _deleteModal.classList.add('open');
+    }
+
+    function closeDeleteModal() {
+        _deleteModal.classList.remove('open');
+        _pendingDeleteId = null;
+    }
+
+    _deleteCancelBtn.addEventListener('click', closeDeleteModal);
+    _deleteModal.addEventListener('click', (e) => { if (e.target === _deleteModal) closeDeleteModal(); });
+    _deleteConfirmBtn.addEventListener('click', async () => {
+        if (_pendingDeleteId) await deleteChat(_pendingDeleteId);
+        closeDeleteModal();
+    });
+
+    // ── EMPTY STATE ──────────────────────────────────────────────────────────
+    function getEmptyStateHTML() {
+        return `<div class="empty-state" id="emptyState">
+            <p class="empty-state-title">What would you like to explore?</p>
+            <div class="empty-cards">
+                <button class="empty-card" data-query="What are the main trends in immigration legislation since 2005?">What are the main trends in immigration legislation since 2005?</button>
+                <button class="empty-card" data-query="Which states have the most immigrant-friendly policies?">Which states have the most immigrant-friendly policies?</button>
+                <button class="empty-card" data-query="Explain the Trump Effect on immigration legislation in 2017">Explain the Trump Effect on immigration legislation in 2017</button>
+                <button class="empty-card" data-query="Compare sanctuary policies in California vs Texas">Compare sanctuary policies in California vs Texas</button>
+            </div>
+        </div>`;
+    }
+
+    function attachEmptyCardListeners() {
+        document.querySelectorAll('.empty-card').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('chatInput');
+                input.value = btn.dataset.query;
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+                handleSend();
+            });
+        });
+    }
+
+    attachEmptyCardListeners();
+
+    // ── EXAMPLES DROPDOWN ────────────────────────────────────────────────────
+    const _examplesBtn  = document.getElementById('examplesBtn');
+    const _examplesMenu = document.getElementById('examplesMenu');
+    _examplesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = _examplesMenu.classList.toggle('open');
+        _examplesBtn.classList.toggle('open', open);
+    });
+    document.addEventListener('click', () => {
+        _examplesMenu.classList.remove('open');
+        _examplesBtn.classList.remove('open');
+    });
+
+    // ── TEXTAREA AUTO-RESIZE ─────────────────────────────────────────────────
+    const _pillTA = document.getElementById('chatInput');
+    _pillTA.addEventListener('input', () => {
+        _pillTA.style.height = 'auto';
+        _pillTA.style.height = Math.min(_pillTA.scrollHeight, 160) + 'px';
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    loadData();
+    loadChatList();
+    </script>
+</body>
+</html>

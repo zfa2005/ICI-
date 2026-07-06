@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Team — Immigrant Climate Index</title>
+    <meta name="description" content="Meet the researchers behind the Immigrant Climate Index — Prof. Huyen Pham (Texas A&M Law) and Prof. Van H. Pham (Baylor University).">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent:       #6366F1;
+            --accent-dark:  #4F46E5;
+            --accent-light: #818CF8;
+            --accent-glow:  rgba(99,102,241,0.14);
+            --positive:     #10B981;
+            --bg:           #09090B;
+            --surface-1:    #111113;
+            --surface-2:    #18181B;
+            --surface-3:    #27272A;
+            --border:       #3F3F46;
+            --border-s:     #27272A;
+            --text:         #FAFAFA;
+            --text-2:       #A1A1AA;
+            --text-m:       #71717A;
+            --nav-h:        68px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 99px; }
+
+        .container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 20%, var(--accent-light) 60%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.28);
+            border-radius: 99px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-light);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 18px;
+        }
+        .section-label::before {
+            content: '';
+            width: 5px; height: 5px;
+            background: var(--accent-light);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        @keyframes fadeUpIn {
+            from { opacity: 0; transform: translateY(32px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes navDown {
+            from { opacity: 0; transform: translateY(-100%); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50%       { background-position: 100% 50%; }
+        }
+
+        .navbar { animation: navDown 0.6s cubic-bezier(0.16,1,0.3,1) both; }
+
+        .gradient-text {
+            background-size: 240% 240%;
+            background-position: 0% 50%;
+            animation: gradientFlow 6s ease infinite;
+        }
+
+        .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.75s cubic-bezier(0.16,1,0.3,1), transform 0.75s cubic-bezier(0.16,1,0.3,1); }
+        .reveal.visible { opacity: 1; transform: none; }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--nav-h);
+            z-index: 1000;
+            border-bottom: 1px solid transparent;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .navbar.scrolled {
+            background: rgba(9,9,11,0.85);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-color: var(--border-s);
+        }
+        .nav-inner {
+            max-width: 1160px; margin: 0 auto; padding: 0 24px;
+            height: 100%; display: flex; align-items: center; gap: 32px;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+        .nav-logo-text { font-size: 0.95rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; transition: color 0.2s; }
+        .nav-logo:hover .nav-logo-text { color: var(--accent-light); }
+        .nav-links { display: flex; align-items: center; gap: 2px; flex: 1; }
+        .nav-link {
+            padding: 6px 13px; font-size: 0.84rem; font-weight: 500;
+            color: var(--text-2); text-decoration: none; border-radius: 8px;
+            transition: color 0.15s, background 0.15s; white-space: nowrap;
+        }
+        .nav-link:hover, .nav-link.active { color: var(--text); background: var(--surface-2); }
+
+        .nav-dropdown { position: relative; }
+        .nav-dropdown-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 6px 13px; font-size: 0.84rem; font-weight: 500;
+            color: var(--text-2); background: transparent; border: none;
+            border-radius: 8px; cursor: pointer; font-family: inherit;
+            transition: color 0.15s, background 0.15s; white-space: nowrap;
+        }
+        .nav-dropdown-btn:hover { color: var(--text); background: var(--surface-2); }
+        .nav-dropdown-btn .chevron { font-size: 0.65rem; transition: transform 0.2s; }
+        .nav-dropdown:hover .chevron { transform: rotate(180deg); }
+        .nav-dropdown-menu {
+            position: absolute; top: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%) translateY(-6px);
+            min-width: 220px; background: var(--surface-1);
+            border: 1px solid var(--border); border-radius: 12px;
+            padding: 6px; opacity: 0; visibility: hidden;
+            transition: opacity 0.18s, visibility 0.18s, transform 0.18s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .nav-dropdown:hover .nav-dropdown-menu { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .dropdown-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 8px; text-decoration: none;
+            transition: background 0.12s;
+        }
+        .dropdown-item:hover { background: var(--surface-2); }
+        .dropdown-item-icon {
+            width: 28px; height: 28px; border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.6rem; font-weight: 700; letter-spacing: 0.03em; flex-shrink: 0;
+        }
+        .dropdown-item-text .title { font-size: 0.81rem; font-weight: 600; color: var(--text); }
+        .dropdown-item-text .sub { font-size: 0.71rem; color: var(--text-m); margin-top: 1px; }
+
+        .nav-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .btn-ghost {
+            padding: 7px 16px; background: transparent; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 0.83rem; font-weight: 500; color: var(--text-2);
+            text-decoration: none; cursor: pointer; font-family: inherit;
+            transition: all 0.15s; white-space: nowrap;
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--accent); background: var(--accent-glow); }
+        .btn-primary {
+            padding: 7px 18px; background: var(--accent); border: none;
+            border-radius: 8px; font-size: 0.83rem; font-weight: 600; color: #fff;
+            text-decoration: none; cursor: pointer; font-family: inherit;
+            transition: background 0.15s, transform 0.1s; white-space: nowrap;
+        }
+        .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+        /* ── PAGE HERO ── */
+        .page-hero {
+            padding: calc(var(--nav-h) + 80px) 0 72px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-s);
+            position: relative;
+            overflow: hidden;
+        }
+        .page-hero::before {
+            content: '';
+            position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+            width: 700px; height: 500px;
+            background: radial-gradient(ellipse, rgba(99,102,241,0.13) 0%, transparent 68%);
+            pointer-events: none;
+        }
+        .page-hero::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+        }
+        .page-hero .section-label {
+            animation: fadeUpIn 0.7s cubic-bezier(0.16,1,0.3,1) both;
+            animation-delay: 0.1s;
+        }
+        .page-hero h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            margin-bottom: 14px;
+            animation: fadeUpIn 0.7s cubic-bezier(0.16,1,0.3,1) both;
+            animation-delay: 0.22s;
+        }
+        .page-hero p {
+            font-size: 1rem;
+            color: var(--text-2);
+            max-width: 540px;
+            margin: 0 auto;
+            line-height: 1.7;
+            animation: fadeUpIn 0.7s cubic-bezier(0.16,1,0.3,1) both;
+            animation-delay: 0.34s;
+        }
+
+        @keyframes shimmerSlide {
+            from { transform: translateX(-120%) skewX(-10deg); }
+            to   { transform: translateX(380%)  skewX(-10deg); }
+        }
+
+        /* ── TEAM ── */
+        .team-section { padding: 88px 0 110px; }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .team-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+        .team-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-light) 40%, var(--accent) 60%, transparent);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+            z-index: 1;
+        }
+        .team-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 40%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: translateX(-120%) skewX(-10deg);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .team-card:hover {
+            border-color: rgba(99,102,241,0.45);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.1);
+        }
+        .team-card:hover::before { transform: scaleX(1); }
+        .team-card:hover::after  { animation: shimmerSlide 0.65s ease forwards; }
+
+        .team-photo-wrap {
+            height: 280px;
+            background: var(--surface-2);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        .team-photo-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+        .team-avatar {
+            width: 96px; height: 96px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem; font-weight: 800; color: #fff;
+        }
+        .team-photo-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(17,17,19,0.85) 0%, transparent 50%);
+        }
+        .team-affil {
+            position: absolute; bottom: 14px; left: 16px;
+            display: flex; align-items: center; gap: 7px;
+            background: rgba(9,9,11,0.75); border: 1px solid var(--border-s);
+            border-radius: 8px; padding: 5px 10px; backdrop-filter: blur(8px);
+        }
+        .team-affil-dot { width: 6px; height: 6px; background: var(--accent-light); border-radius: 50%; }
+        .team-affil-text { font-size: 0.68rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+
+        .team-body { padding: 22px 24px 28px; }
+        .team-body h3 { font-size: 1.12rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 3px; }
+        .team-title { font-size: 0.78rem; color: var(--accent-light); font-weight: 500; margin-bottom: 14px; }
+        .team-bio { font-size: 0.82rem; color: var(--text-2); line-height: 1.65; margin-bottom: 16px; }
+
+        .team-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+        .team-tag {
+            padding: 3px 9px; background: var(--surface-2); border: 1px solid var(--border-s);
+            border-radius: 5px; font-size: 0.7rem; color: var(--text-m); font-weight: 500;
+        }
+
+        .team-edu { border-top: 1px solid var(--border-s); padding-top: 14px; }
+        .team-edu-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-m); margin-bottom: 8px; }
+        .team-edu-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+        .team-edu-item::before { content: '◆'; font-size: 0.4rem; color: var(--accent-light); margin-top: 6px; flex-shrink: 0; }
+        .team-edu-item span { font-size: 0.77rem; color: var(--text-2); line-height: 1.4; }
+
+        /* ── FOOTER ── */
+        footer { border-top: 1px solid var(--border-s); padding: 52px 0 36px; }
+        .footer-inner {
+            display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr;
+            gap: 40px; margin-bottom: 48px;
+        }
+        .footer-brand p { font-size: 0.82rem; color: var(--text-m); line-height: 1.65; margin: 14px 0 20px; max-width: 260px; }
+        .footer-col h4 { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-m); margin-bottom: 14px; }
+        .footer-col a { display: block; font-size: 0.83rem; color: var(--text-2); text-decoration: none; margin-bottom: 8px; transition: color 0.15s; }
+        .footer-col a:hover { color: var(--text); }
+        .footer-bottom { border-top: 1px solid var(--border-s); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .footer-bottom p { font-size: 0.78rem; color: var(--text-m); }
+        .footer-bottom-links { display: flex; gap: 20px; }
+        .footer-bottom-links a { font-size: 0.78rem; color: var(--text-m); text-decoration: none; transition: color 0.15s; }
+        .footer-bottom-links a:hover { color: var(--text-2); }
+
+        @media (max-width: 900px) {
+            .team-grid { grid-template-columns: 1fr; }
+            .footer-inner { grid-template-columns: 1fr 1fr; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+    <div class="nav-inner">
+        <a href="home.html" class="nav-logo">
+            <span class="nav-logo-text">Immigrant Climate Index</span>
+        </a>
+        <div class="nav-links">
+            <a href="home.html" class="nav-link">Home</a>
+            <a href="home.html#why-ici" class="nav-link">Why ICI</a>
+            <a href="home.html#features" class="nav-link">Features</a>
+            <a href="home.html#who-we-serve" class="nav-link">Who We Serve</a>
+            <a href="team.html" class="nav-link active">Team</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+            <div class="nav-dropdown">
+                <button class="nav-dropdown-btn">Research <span class="chevron">▾</span></button>
+                <div class="nav-dropdown-menu">
+                    <a href="index.html" class="dropdown-item">
+                        <div class="dropdown-item-icon" style="background:rgba(99,102,241,0.12);color:#818CF8;">PUB</div>
+                        <div class="dropdown-item-text">
+                            <div class="title">Research Publication</div>
+                            <div class="sub">Full academic paper &amp; methodology</div>
+                        </div>
+                    </a>
+                    <a href="chatbot-ai.html" class="dropdown-item">
+                        <div class="dropdown-item-icon" style="background:rgba(245,158,11,0.12);color:#F59E0B;">AI</div>
+                        <div class="dropdown-item-text">
+                            <div class="title">AI Research Assistant</div>
+                            <div class="sub">Natural-language database queries</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <a href="#" class="btn-ghost">Log in</a>
+            <a href="#" class="btn-primary">Sign up</a>
+        </div>
+    </div>
+</nav>
+
+<div class="page-hero">
+    <div class="container">
+        <div class="section-label">The Research Team</div>
+        <h1>Built by leading scholars in<br><span class="gradient-text">law and economics</span></h1>
+        <p>The ICI is the product of a decade-long collaboration between an immigration law expert and a development economist — bridging legal analysis and quantitative methodology.</p>
+    </div>
+</div>
+
+<div class="team-section">
+    <div class="container">
+        <div class="team-grid">
+
+            <!-- Professor Huyen Pham -->
+            <div class="team-card reveal">
+                <div class="team-photo-wrap">
+                    <img
+                        src="https://www.law.tamu.edu/_assets/images/_profile-images/huyen-pham.jpg"
+                        alt="Professor Huyen Pham"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <div class="team-avatar" style="display:none;">HP</div>
+                    <div class="team-photo-overlay"></div>
+                    <div class="team-affil">
+                        <div class="team-affil-dot"></div>
+                        <span class="team-affil-text">Texas A&amp;M University School of Law</span>
+                    </div>
+                </div>
+                <div class="team-body">
+                    <h3>Prof. Huyen Pham</h3>
+                    <div class="team-title">Professor of Law · Texas A&amp;M University School of Law</div>
+                    <p class="team-bio">
+                        Professor Pham is one of the leading scholars in sub-federal immigration law in the United States. Her research examines how state and local governments regulate immigration — and what those regulations mean for immigrant communities, civil rights, and federal-state relations. She is the co-creator of the Immigrant Climate Index and has testified before Congress on immigration enforcement policy.
+                    </p>
+                    <div class="team-tags">
+                        <span class="team-tag">Immigration Law</span>
+                        <span class="team-tag">Civil Rights</span>
+                        <span class="team-tag">Federalism</span>
+                        <span class="team-tag">Enforcement Policy</span>
+                    </div>
+                    <div class="team-edu">
+                        <div class="team-edu-label">Education &amp; Positions</div>
+                        <div class="team-edu-item"><span>J.D. — Harvard Law School</span></div>
+                        <div class="team-edu-item"><span>B.A. — University of California, Berkeley</span></div>
+                        <div class="team-edu-item"><span>Professor of Law, Texas A&amp;M School of Law (current)</span></div>
+                        <div class="team-edu-item"><span>Published in <em>NYU Law Review</em>, <em>U. Chicago Law Review</em>, <em>Vanderbilt Law Review</em></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professor Van H. Pham -->
+            <div class="team-card reveal" style="transition-delay:0.12s">
+                <div class="team-photo-wrap">
+                    <img
+                        src="https://hankamer.baylor.edu/sites/g/files/ecbvkj336/files/styles/xl/public/2025-09/Van%20Pham.jpg"
+                        alt="Professor Van H. Pham"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <div class="team-avatar" style="display:none;">VP</div>
+                    <div class="team-photo-overlay"></div>
+                    <div class="team-affil">
+                        <div class="team-affil-dot"></div>
+                        <span class="team-affil-text">Baylor University · Hankamer School of Business</span>
+                    </div>
+                </div>
+                <div class="team-body">
+                    <h3>Prof. Van H. Pham</h3>
+                    <div class="team-title">Chair &amp; Professor of Economics · Baylor University</div>
+                    <p class="team-bio">
+                        Professor Van Pham is Chair of the Economics Department at Baylor's Hankamer School of Business and an internationally recognised scholar in economic development and immigration. He brings quantitative rigour to the ICI's scoring methodology, drawing on over 25 years of research across immigration economics, health policy, gender in labor markets, and sovereign debt. His work on child labor economics in the <em>American Economic Review</em> has over 3,000 citations.
+                    </p>
+                    <div class="team-tags">
+                        <span class="team-tag">Development Economics</span>
+                        <span class="team-tag">Immigration</span>
+                        <span class="team-tag">Labor Markets</span>
+                        <span class="team-tag">Health Policy</span>
+                    </div>
+                    <div class="team-edu">
+                        <div class="team-edu-label">Education &amp; Positions</div>
+                        <div class="team-edu-item"><span>Ph.D. in Economics — Cornell University (1998)</span></div>
+                        <div class="team-edu-item"><span>S.M. in Mechanical Engineering — MIT (1992)</span></div>
+                        <div class="team-edu-item"><span>S.B. in Mechanical Engineering — MIT (1989)</span></div>
+                        <div class="team-edu-item"><span>Fulbright Scholar · World Bank Visiting Researcher</span></div>
+                        <div class="team-edu-item"><span>Tau Beta Pi &amp; Pi Tau Sigma honors, MIT</span></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <a href="home.html" class="nav-logo">
+                    <span class="nav-logo-text">Immigrant Climate Index</span>
+                </a>
+                <p>A quantitative measure of the regulatory climate for immigrants across all U.S. jurisdictions — from federal policy to local ordinance.</p>
+                <p style="font-size:0.73rem;color:#52525B;">© 2024 Huyen Pham &amp; Pham Hoang Van.<br>Texas A&amp;M University School of Law &amp; Baylor University.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Platform</h4>
+                <a href="chatbot-ai.html">AI Research Assistant</a>
+                <a href="index.html">Research Paper</a>
+            </div>
+            <div class="footer-col">
+                <h4>Navigate</h4>
+                <a href="home.html#why-ici">Why ICI</a>
+                <a href="home.html#features">Features</a>
+                <a href="home.html#who-we-serve">Who We Serve</a>
+                <a href="team.html">Team</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div class="footer-col">
+                <h4>Authors</h4>
+                <a href="https://www.law.tamu.edu/" target="_blank">Texas A&amp;M School of Law</a>
+                <a href="https://hankamer.baylor.edu/economics" target="_blank">Baylor Economics</a>
+                <a href="https://hankamer.baylor.edu/person/van-h-pham" target="_blank">Prof. Van H. Pham</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>Built for open academic research. Database covers 2005–2026.</p>
+            <div class="footer-bottom-links">
+                <a href="index.html">Research</a>
+                <a href="chatbot-ai.html">AI Chat</a>
+                <a href="home.html">Home</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+        navbar.classList.toggle('scrolled', window.scrollY > 40);
+    }, { passive: true });
+
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+</script>
+</body>
+</html>

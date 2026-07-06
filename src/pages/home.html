@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICI — Immigrant Climate Index</title>
+    <meta name="description" content="The Immigrant Climate Index — the first quantitative measure of the regulatory climate for immigrants across all U.S. jurisdictions, from federal to local level.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ── CSS Variables ─────────────────────────────────────────── */
+        :root {
+            --accent:       #6366F1;
+            --accent-dark:  #4F46E5;
+            --accent-light: #818CF8;
+            --accent-glow:  rgba(99,102,241,0.14);
+            --positive:     #10B981;
+            --negative:     #EF4444;
+            --amber:        #F59E0B;
+            --bg:           #09090B;
+            --surface-1:    #111113;
+            --surface-2:    #18181B;
+            --surface-3:    #27272A;
+            --border:       #3F3F46;
+            --border-s:     #27272A;
+            --text:         #FAFAFA;
+            --text-2:       #A1A1AA;
+            --text-m:       #71717A;
+            --nav-h:        68px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 99px; }
+
+        /* ── UTILITY ────────────────────────────────────────────────── */
+        .container {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 20%, var(--accent-light) 60%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.28);
+            border-radius: 99px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-light);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 18px;
+        }
+
+        .section-label::before {
+            content: '';
+            width: 5px; height: 5px;
+            background: var(--accent-light);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        /* ── KEYFRAMES ──────────────────────────────────────────────── */
+
+        @keyframes fadeUpHero {
+            from { opacity: 0; transform: translateY(36px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes navSlideDown {
+            from { opacity: 0; transform: translateY(-100%); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50%       { background-position: 100% 50%; }
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { box-shadow: 0 0 0 0   rgba(16,185,129,0.7); }
+            60%       { box-shadow: 0 0 0 6px rgba(16,185,129,0);   }
+        }
+
+        @keyframes orbDrift1 {
+            0%, 100% { transform: translateX(-50%) translateY(0px)   scale(1);    }
+            38%       { transform: translateX(-47%) translateY(-44px) scale(1.06); }
+            72%       { transform: translateX(-53%) translateY(20px)  scale(0.95); }
+        }
+
+        @keyframes orbDrift2 {
+            0%, 100% { transform: translateY(0px)   scale(1);    }
+            50%       { transform: translateY(-36px) scale(1.08); }
+        }
+
+        @keyframes orbDrift3 {
+            0%, 100% { transform: translateX(0px)   translateY(0px);   }
+            40%       { transform: translateX(28px)  translateY(-22px); }
+            75%       { transform: translateX(-16px) translateY(16px);  }
+        }
+
+        @keyframes shimmerSlide {
+            from { transform: translateX(-120%) skewX(-10deg); }
+            to   { transform: translateX(380%)  skewX(-10deg); }
+        }
+
+        @keyframes btnShimmerLoop {
+            0%        { transform: translateX(-120%) skewX(-10deg); opacity: 0; }
+            4%        { opacity: 1; }
+            28%       { transform: translateX(360%)  skewX(-10deg); opacity: 0.7; }
+            29%, 100% { transform: translateX(-120%) skewX(-10deg); opacity: 0; }
+        }
+
+        @keyframes scanLine {
+            0%   { top: -1px; opacity: 0.8; }
+            100% { top: 100%; opacity: 0;   }
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1;   }
+        }
+
+        /* ── NAVBAR ENTRANCE ─────────────────────────────────────────── */
+        .navbar {
+            animation: navSlideDown 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        /* ── HERO ENTRANCE — staggered cascade ───────────────────────── */
+        .hero-badge { animation: fadeUpHero 0.72s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.08s; }
+        .hero h1    { animation: fadeUpHero 0.72s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.22s; }
+        .hero-sub   { animation: fadeUpHero 0.72s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.35s; }
+        .hero-ctas  { animation: fadeUpHero 0.72s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.48s; }
+        .hero-stats { animation: fadeUpHero 0.72s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.62s; }
+
+        /* ── ANIMATED GRADIENT TEXT ──────────────────────────────────── */
+        .gradient-text {
+            background-size: 250% 250%;
+            background-position: 0% 50%;
+            animation: gradientFlow 6s ease infinite;
+        }
+
+        /* ── PULSING LIVE DOT ────────────────────────────────────────── */
+        .hero-badge-dot { animation: pulseDot 2.4s ease-in-out infinite; }
+
+        /* ── HERO BACKGROUND ORBS ────────────────────────────────────── */
+        .hero-orb {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(80px);
+            will-change: transform;
+        }
+        .hero-orb-1 {
+            width: 680px; height: 480px;
+            background: radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 68%);
+            top: 6%; left: 50%;
+            animation: orbDrift1 15s ease-in-out infinite;
+        }
+        .hero-orb-2 {
+            width: 300px; height: 300px;
+            background: radial-gradient(ellipse, rgba(16,185,129,0.10) 0%, transparent 65%);
+            top: 50%; right: 6%;
+            animation: orbDrift2 19s ease-in-out infinite;
+        }
+        .hero-orb-3 {
+            width: 240px; height: 240px;
+            background: radial-gradient(ellipse, rgba(245,158,11,0.08) 0%, transparent 65%);
+            top: 30%; left: 4%;
+            animation: orbDrift3 24s ease-in-out infinite;
+        }
+        /* Orbs replace the static hero glow */
+        .hero::before { background: none; }
+
+        /* ── HERO CTA — periodic shimmer sweep ───────────────────────── */
+        .btn-hero-primary {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-hero-primary::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 35%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+            transform: translateX(-120%) skewX(-10deg);
+            animation: btnShimmerLoop 4.5s ease-in-out infinite;
+            animation-delay: 1.8s;
+            pointer-events: none;
+        }
+
+        /* ── IMPROVED SCROLL REVEAL ──────────────────────────────────── */
+        /* fade-in on scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity 0.75s cubic-bezier(0.16,1,0.3,1),
+                        transform 0.75s cubic-bezier(0.16,1,0.3,1);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: none;
+        }
+
+        /* ── CARD HOVER — accent top border reveal ───────────────────── */
+        .why-card, .feature-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .why-card::before, .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-light) 40%, var(--accent) 60%, transparent);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        .why-card:hover::before, .feature-card:hover::before { transform: scaleX(1); }
+
+        /* Subtle inner glow on card hover */
+        .why-card:hover, .feature-card:hover {
+            background: linear-gradient(160deg, rgba(99,102,241,0.04) 0%, transparent 60%);
+        }
+
+        /* ── CARD HOVER — left accent bar for serve cards ────────────── */
+        .serve-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .serve-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, transparent, var(--accent-light), transparent);
+            transform: scaleY(0);
+            transform-origin: center;
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        .serve-card:hover::before { transform: scaleY(1); }
+
+        /* ── TOOL CARD — shimmer sweep on hover ──────────────────────── */
+        .tool-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 40%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            transform: translateX(-120%) skewX(-8deg);
+            pointer-events: none;
+        }
+        .tool-card:hover::after { animation: shimmerSlide 0.65s ease forwards; }
+
+        /* ── NAV LINK — underline on hover ───────────────────────────── */
+        .nav-link { position: relative; }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 3px; left: 13px; right: 13px;
+            height: 1px;
+            background: var(--accent-light);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.22s ease;
+        }
+        .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); }
+
+        /* ── CTA SECTION — animated scanline ────────────────────────── */
+        #cta { overflow: hidden; }
+        #cta::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.5) 50%, transparent 100%);
+            animation: scanLine 5s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── STAT COUNTER — glow while animating ─────────────────────── */
+        .hero-stat-num.counting {
+            text-shadow: 0 0 24px rgba(99,102,241,0.55);
+        }
+
+        /* ── FORM — enhanced focus glow ──────────────────────────────── */
+        .form-control:focus {
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 0 20px rgba(99,102,241,0.08);
+        }
+
+        /* ── ACCESSIBILITY — respect reduced motion ───────────────────── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.15ms !important;
+            }
+        }
+
+        /* ── NAVBAR ─────────────────────────────────────────────────── */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--nav-h);
+            z-index: 1000;
+            border-bottom: 1px solid transparent;
+            transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+        }
+
+        .navbar.scrolled {
+            background: rgba(9,9,11,0.85);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-color: var(--border-s);
+        }
+
+        .nav-inner {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        /* Logo */
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+
+        .nav-logo-mark {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800;
+            font-size: 0.82rem;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-logo-text {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+            transition: color 0.2s;
+        }
+
+        .nav-logo:hover .nav-logo-text { color: var(--accent-light); }
+
+        .nav-logo-text span {
+            color: var(--accent-light);
+        }
+
+        /* Nav links */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .nav-link {
+            padding: 6px 13px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            color: var(--text-2);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: color 0.15s, background 0.15s;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text);
+            background: var(--surface-2);
+        }
+
+        /* Research dropdown */
+        .nav-dropdown {
+            position: relative;
+        }
+
+        .nav-dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 13px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            color: var(--text-2);
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: color 0.15s, background 0.15s;
+            white-space: nowrap;
+        }
+
+        .nav-dropdown-btn:hover {
+            color: var(--text);
+            background: var(--surface-2);
+        }
+
+        .nav-dropdown-btn .chevron {
+            font-size: 0.65rem;
+            transition: transform 0.2s;
+        }
+
+        .nav-dropdown:hover .chevron { transform: rotate(180deg); }
+
+        .nav-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 220px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.18s, visibility 0.18s, transform 0.18s;
+            transform: translateX(-50%) translateY(-6px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .nav-dropdown:hover .nav-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background 0.12s;
+        }
+
+        .dropdown-item:hover { background: var(--surface-2); }
+
+        .dropdown-item-icon {
+            width: 28px; height: 28px;
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .dropdown-item-text .title {
+            font-size: 0.81rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .dropdown-item-text .sub {
+            font-size: 0.71rem;
+            color: var(--text-m);
+            margin-top: 1px;
+        }
+
+        /* Nav right */
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-ghost {
+            padding: 7px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.83rem;
+            font-weight: 500;
+            color: var(--text-2);
+            text-decoration: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-ghost:hover {
+            color: var(--text);
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .btn-primary {
+            padding: 7px 18px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.83rem;
+            font-weight: 600;
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+        }
+
+        /* ── HERO ───────────────────────────────────────────────────── */
+        .hero {
+            padding: calc(var(--nav-h) + 80px) 0 100px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Radial glow behind hero text */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 700px;
+            height: 500px;
+            background: radial-gradient(ellipse at center, rgba(99,102,241,0.13) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Subtle grid pattern */
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+        }
+
+        .hero-inner { position: relative; z-index: 1; }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 14px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            color: var(--text-2);
+            margin-bottom: 28px;
+            letter-spacing: 0.02em;
+        }
+
+        .hero-badge-dot {
+            width: 6px; height: 6px;
+            background: var(--positive);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--positive);
+        }
+
+        .hero-badge-sep {
+            width: 1px; height: 12px;
+            background: var(--border);
+        }
+
+        .hero h1 {
+            font-size: clamp(2.4rem, 6vw, 4.2rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            margin-bottom: 22px;
+        }
+
+        .hero-sub {
+            font-size: clamp(1rem, 2vw, 1.18rem);
+            color: var(--text-2);
+            max-width: 600px;
+            margin: 0 auto 38px;
+            line-height: 1.65;
+            font-weight: 400;
+        }
+
+        .hero-ctas {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 64px;
+        }
+
+        .btn-hero-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 13px 26px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 4px 24px rgba(99,102,241,0.35);
+        }
+
+        .btn-hero-primary:hover {
+            background: var(--accent-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(99,102,241,0.45);
+        }
+
+        .btn-hero-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 13px 26px;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-2);
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .btn-hero-secondary:hover {
+            color: var(--text);
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        /* Hero stats row */
+        .hero-stats {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .hero-stat {
+            flex: 1;
+            padding: 20px 16px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-stat + .hero-stat::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 20%; bottom: 20%;
+            width: 1px;
+            background: var(--border-s);
+        }
+
+        .hero-stat-num {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            color: var(--accent-light);
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        .hero-stat-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-m);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-top: 4px;
+        }
+
+        /* ── SECTION SHARED ────────────────────────────────────────── */
+        section {
+            padding: 100px 0;
+        }
+
+        .section-head {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+
+        .section-head h2 {
+            font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+        }
+
+        .section-head p {
+            font-size: 1rem;
+            color: var(--text-2);
+            max-width: 560px;
+            margin: 0 auto;
+            line-height: 1.65;
+        }
+
+        /* ── WHY ICI ────────────────────────────────────────────────── */
+        #why-ici { border-top: 1px solid var(--border-s); }
+
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .why-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px 26px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .why-card:hover {
+            border-color: rgba(99,102,241,0.4);
+            transform: translateY(-3px);
+        }
+
+        .why-icon {
+            width: 44px; height: 44px;
+            border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 18px;
+        }
+
+        .why-card h3 {
+            font-size: 1.02rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.015em;
+        }
+
+        .why-card p {
+            font-size: 0.85rem;
+            color: var(--text-2);
+            line-height: 1.65;
+        }
+
+        /* ── FEATURES ───────────────────────────────────────────────── */
+        #features { background: var(--surface-1); border-top: 1px solid var(--border-s); border-bottom: 1px solid var(--border-s); }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .feature-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px 24px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(99,102,241,0.45);
+            box-shadow: 0 0 0 1px rgba(99,102,241,0.12), 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .feature-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-s);
+        }
+
+        .feature-card h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            font-size: 0.82rem;
+            color: var(--text-2);
+            line-height: 1.6;
+        }
+
+        /* ── WHO WE SERVE ───────────────────────────────────────────── */
+        #who-we-serve { border-top: 1px solid var(--border-s); }
+
+        .serve-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .serve-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .serve-card:hover {
+            border-color: rgba(99,102,241,0.4);
+            transform: translateY(-3px);
+        }
+
+        .serve-emoji {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .serve-card h3 {
+            font-size: 1.08rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .serve-card p {
+            font-size: 0.84rem;
+            color: var(--text-2);
+            line-height: 1.65;
+            margin-bottom: 18px;
+        }
+
+        .serve-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .serve-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-2);
+        }
+
+        .serve-list li::before {
+            content: '✓';
+            color: var(--positive);
+            font-weight: 700;
+            font-size: 0.75rem;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ── TOOLS / QUICK ACCESS ───────────────────────────────────── */
+        #tools { background: var(--surface-1); border-top: 1px solid var(--border-s); border-bottom: 1px solid var(--border-s); }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 1fr;
+            gap: 14px;
+        }
+
+        .tool-card {
+            border-radius: 16px;
+            padding: 30px 28px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card:hover { transform: translateY(-4px); }
+
+        .tool-card.primary {
+            background: linear-gradient(135deg, var(--accent-dark) 0%, #3730A3 100%);
+            border: 1px solid rgba(99,102,241,0.4);
+        }
+
+        .tool-card.primary:hover {
+            box-shadow: 0 12px 40px rgba(99,102,241,0.35);
+        }
+
+        .tool-card.secondary {
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        .tool-card.secondary:hover {
+            border-color: rgba(99,102,241,0.4);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+        }
+
+        .tool-card-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        .tool-card.primary .tool-card-label { color: rgba(255,255,255,0.6); }
+        .tool-card.secondary .tool-card-label { color: var(--text-m); }
+
+        .tool-card h3 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 10px;
+        }
+
+        .tool-card.primary h3 { color: #fff; }
+        .tool-card.secondary h3 { color: var(--text); }
+
+        .tool-card p {
+            font-size: 0.83rem;
+            line-height: 1.55;
+            margin-bottom: 22px;
+        }
+
+        .tool-card.primary p { color: rgba(255,255,255,0.7); }
+        .tool-card.secondary p { color: var(--text-2); }
+
+        .tool-card-arrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .tool-card.primary .tool-card-arrow { color: rgba(255,255,255,0.85); }
+        .tool-card.secondary .tool-card-arrow { color: var(--accent-light); }
+
+        .tool-card-bg-icon {
+            position: absolute;
+            bottom: -10px; right: -10px;
+            font-size: 5rem;
+            opacity: 0.07;
+            pointer-events: none;
+        }
+
+        /* ── TEAM ───────────────────────────────────────────────────── */
+        #team { border-top: 1px solid var(--border-s); }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        .team-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .team-card:hover {
+            border-color: rgba(99,102,241,0.4);
+            transform: translateY(-3px);
+        }
+
+        .team-photo-wrap {
+            height: 280px;
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .team-photo-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 20%;
+        }
+
+        /* Styled avatar for when photo is unavailable */
+        .team-avatar {
+            width: 96px; height: 96px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .team-photo-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(17,17,19,0.85) 0%, transparent 50%);
+        }
+
+        .team-affil {
+            position: absolute;
+            bottom: 14px; left: 16px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(9,9,11,0.75);
+            border: 1px solid var(--border-s);
+            border-radius: 8px;
+            padding: 5px 10px;
+            backdrop-filter: blur(8px);
+        }
+
+        .team-affil-dot {
+            width: 6px; height: 6px;
+            background: var(--accent-light);
+            border-radius: 50%;
+        }
+
+        .team-affil-text {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-2);
+            white-space: nowrap;
+        }
+
+        .team-body { padding: 22px 24px 26px; }
+
+        .team-body h3 {
+            font-size: 1.12rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 3px;
+        }
+
+        .team-title {
+            font-size: 0.78rem;
+            color: var(--accent-light);
+            font-weight: 500;
+            margin-bottom: 14px;
+        }
+
+        .team-bio {
+            font-size: 0.82rem;
+            color: var(--text-2);
+            line-height: 1.65;
+            margin-bottom: 16px;
+        }
+
+        .team-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .team-tag {
+            padding: 3px 9px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-s);
+            border-radius: 5px;
+            font-size: 0.7rem;
+            color: var(--text-m);
+            font-weight: 500;
+        }
+
+        .team-edu {
+            border-top: 1px solid var(--border-s);
+            padding-top: 14px;
+        }
+
+        .team-edu-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-m);
+            margin-bottom: 8px;
+        }
+
+        .team-edu-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .team-edu-item::before {
+            content: '◆';
+            font-size: 0.4rem;
+            color: var(--accent-light);
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .team-edu-item span {
+            font-size: 0.77rem;
+            color: var(--text-2);
+            line-height: 1.4;
+        }
+
+        /* ── CTA ────────────────────────────────────────────────────── */
+        #cta {
+            text-align: center;
+            background: var(--surface-1);
+            border-top: 1px solid var(--border-s);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #cta::before {
+            content: '';
+            position: absolute;
+            top: -100px; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 400px;
+            background: radial-gradient(ellipse, rgba(99,102,241,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta-inner { position: relative; z-index: 1; }
+
+        #cta h2 {
+            font-size: clamp(1.8rem, 3vw, 2.6rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+        }
+
+        #cta p {
+            color: var(--text-2);
+            max-width: 500px;
+            margin: 0 auto 36px;
+            line-height: 1.65;
+        }
+
+        .cta-btns {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ── CONTACT / DEMO FORM ────────────────────────────────────── */
+        #contact {
+            border-top: 1px solid var(--border-s);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 60px;
+            align-items: start;
+        }
+
+        .contact-info h2 {
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+        }
+
+        .contact-info p {
+            font-size: 0.9rem;
+            color: var(--text-2);
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+
+        .contact-perks {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .contact-perks li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.84rem;
+            color: var(--text-2);
+        }
+
+        .contact-perks li .perk-icon {
+            width: 28px; height: 28px;
+            border-radius: 7px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .contact-form-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contact-form-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--accent) 40%, var(--accent-light) 60%, transparent 100%);
+            opacity: 0.5;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .form-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-2);
+            letter-spacing: 0.01em;
+        }
+
+        .form-group label .required {
+            color: var(--negative);
+            margin-left: 2px;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.84rem;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            -webkit-appearance: none;
+        }
+
+        .form-control::placeholder {
+            color: var(--text-m);
+        }
+
+        .form-control:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 110px;
+            line-height: 1.55;
+        }
+
+        .form-submit {
+            width: 100%;
+            margin-top: 18px;
+            padding: 12px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+        }
+
+        .form-submit:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px rgba(99,102,241,0.4);
+        }
+
+        .form-submit:active { transform: none; }
+
+        .form-note {
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--text-m);
+            margin-top: 12px;
+        }
+
+        /* Success state shown after submit */
+        .form-success {
+            display: none;
+            text-align: center;
+            padding: 32px 20px;
+        }
+
+        .form-success .success-icon {
+            font-size: 2.5rem;
+            margin-bottom: 14px;
+        }
+
+        .form-success h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .form-success p {
+            font-size: 0.84rem;
+            color: var(--text-2);
+        }
+
+        @media (max-width: 800px) {
+            .contact-grid { grid-template-columns: 1fr; gap: 36px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        /* ── FOOTER ─────────────────────────────────────────────────── */
+        footer {
+            border-top: 1px solid var(--border-s);
+            padding: 52px 0 36px;
+        }
+
+        .footer-inner {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 48px;
+        }
+
+        .footer-brand p {
+            font-size: 0.82rem;
+            color: var(--text-m);
+            line-height: 1.65;
+            margin: 14px 0 20px;
+            max-width: 260px;
+        }
+
+        .footer-col h4 {
+            font-size: 0.73rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--text-m);
+            margin-bottom: 14px;
+        }
+
+        .footer-col a {
+            display: block;
+            font-size: 0.83rem;
+            color: var(--text-2);
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: color 0.15s;
+        }
+
+        .footer-col a:hover { color: var(--text); }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border-s);
+            padding-top: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .footer-bottom p {
+            font-size: 0.78rem;
+            color: var(--text-m);
+        }
+
+        .footer-bottom-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-bottom-links a {
+            font-size: 0.78rem;
+            color: var(--text-m);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .footer-bottom-links a:hover { color: var(--text-2); }
+
+        /* ── TRUST BAR ──────────────────────────────────────────────── */
+        .trust-bar {
+            margin-top: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            flex-wrap: wrap;
+            padding: 18px 0;
+            border-top: 1px solid var(--border-s);
+        }
+
+        .trust-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-m);
+            margin-right: 24px;
+        }
+
+        .trust-items {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .trust-item {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-2);
+            padding: 4px 14px;
+            border: 1px solid var(--border-s);
+            border-radius: 6px;
+            background: var(--surface-1);
+            transition: border-color 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+
+        .trust-item:hover {
+            border-color: rgba(99,102,241,0.3);
+            color: var(--text);
+        }
+
+        /* ── PAGE TRANSITIONS ────────────────────────────────────────── */
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--border-s) 20%, var(--border) 50%, var(--border-s) 80%, transparent 100%);
+            margin: 0;
+        }
+
+        /* ── RESPONSIVE ─────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .why-grid,
+            .features-grid,
+            .serve-grid { grid-template-columns: 1fr; }
+            .tools-grid { grid-template-columns: 1fr; }
+            .team-grid { grid-template-columns: 1fr; }
+            .footer-inner { grid-template-columns: 1fr 1fr; }
+            .nav-links { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            .hero-stats { flex-direction: column; }
+            .hero-stat + .hero-stat::before { display: none; }
+            .footer-inner { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════════════════════════════ -->
+<nav class="navbar" id="navbar">
+    <div class="nav-inner">
+        <!-- Logo -->
+        <a href="home.html" class="nav-logo">
+            <span class="nav-logo-text">Immigrant Climate Index</span>
+        </a>
+
+        <!-- Nav links -->
+        <div class="nav-links">
+            <a href="home.html" class="nav-link active">Home</a>
+            <a href="#why-ici" class="nav-link">Why ICI</a>
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#who-we-serve" class="nav-link">Who We Serve</a>
+            <a href="team.html" class="nav-link">Team</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+
+            <!-- Research dropdown -->
+            <div class="nav-dropdown">
+                <button class="nav-dropdown-btn">
+                    Research <span class="chevron">▾</span>
+                </button>
+                <div class="nav-dropdown-menu">
+                    <a href="index.html" class="dropdown-item">
+                        <div class="dropdown-item-icon" style="background:rgba(99,102,241,0.12);color:#818CF8;font-size:0.6rem;font-weight:700;letter-spacing:0.03em;">PUB</div>
+                        <div class="dropdown-item-text">
+                            <div class="title">Research Publication</div>
+                            <div class="sub">Full academic paper &amp; methodology</div>
+                        </div>
+                    </a>
+                    <a href="chatbot-ai.html" class="dropdown-item">
+                        <div class="dropdown-item-icon" style="background:rgba(245,158,11,0.12);color:#F59E0B;font-size:0.6rem;font-weight:700;letter-spacing:0.03em;">AI</div>
+                        <div class="dropdown-item-text">
+                            <div class="title">AI Research Assistant</div>
+                            <div class="sub">Natural-language database queries</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auth buttons (backend TBD) -->
+        <div class="nav-right">
+            <a href="#" class="btn-ghost">Log in</a>
+            <a href="#" class="btn-primary">Sign up</a>
+        </div>
+    </div>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════════════ -->
+<section class="hero">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+    <div class="container hero-inner">
+        <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            Academic Research &mdash; Texas A&amp;M Law &amp; Baylor University
+            <span class="hero-badge-sep"></span>
+            Open Access Database
+        </div>
+
+        <h1>
+            Measuring America's<br>
+            <span class="gradient-text">Immigration Climate</span>
+        </h1>
+
+        <p class="hero-sub">
+            The first quantitative index measuring the regulation-induced climate
+            for immigrants across every U.S. jurisdiction — federal, state, county,
+            and city — through a rigorous tier-based scoring system.
+        </p>
+
+        <div class="hero-ctas">
+            <a href="chatbot-ai.html" class="btn-hero-primary">
+                Try the AI Assistant →
+            </a>
+            <a href="index.html" class="btn-hero-secondary">
+                Read the Research
+            </a>
+        </div>
+
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-num">13,524</div>
+                <div class="hero-stat-label">Laws Catalogued</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">50</div>
+                <div class="hero-stat-label">States + DC</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">21 yrs</div>
+                <div class="hero-stat-label">Coverage (2005–2026)</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">3,491</div>
+                <div class="hero-stat-label">287(g) Agreements</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">1,000+</div>
+                <div class="hero-stat-label">Jurisdictions</div>
+            </div>
+        </div>
+
+        <div class="trust-bar">
+            <span class="trust-label">Research by</span>
+            <div class="trust-items">
+                <span class="trust-item">Texas A&amp;M University School of Law</span>
+                <span class="trust-item">Baylor University</span>
+                <span class="trust-item">Open Access</span>
+                <span class="trust-item">Peer Reviewed</span>
+                <span class="trust-item">2005 – 2026 Coverage</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     WHY ICI
+══════════════════════════════════════════════════════════════════ -->
+<section id="why-ici">
+    <div class="container">
+        <div class="section-head reveal">
+            <div class="section-label">Why the ICI</div>
+            <h2>Immigration policy is fragmented.<br>We make it measurable.</h2>
+            <p>Before the ICI, researchers and policymakers had no systematic way to compare how welcoming — or hostile — different U.S. jurisdictions are to immigrants. We fixed that.</p>
+        </div>
+
+        <div class="why-grid">
+            <div class="why-card reveal">
+                <div class="why-icon" style="background:rgba(99,102,241,0.12);font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">01</div>
+                <h3>A Fractured Landscape</h3>
+                <p>Immigration regulation happens at the federal level, but thousands of state, county, and city governments each pass their own laws affecting immigrants daily — creating a patchwork impossible to track manually.</p>
+            </div>
+            <div class="why-card reveal" style="transition-delay:0.1s">
+                <div class="why-icon" style="background:rgba(16,185,129,0.12);font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:#10B981;">02</div>
+                <h3>Quantitative Rigor</h3>
+                <p>Every law in the database is assigned a tier score (±1 to ±4) based on the depth of its impact on immigrant life. Scores are aggregated into a single ICI score per jurisdiction — comparable across states and years.</p>
+            </div>
+            <div class="why-card reveal" style="transition-delay:0.2s">
+                <div class="why-icon" style="background:rgba(245,158,11,0.12);font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:#F59E0B;">03</div>
+                <h3>The Trump Effect — Documented</h3>
+                <p>The ICI reveals a 10x spike in legislative activity starting in 2017 as state and local governments raced to pass sanctuary protections in response to federal immigration enforcement escalation.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     FEATURES
+══════════════════════════════════════════════════════════════════ -->
+<section id="features">
+    <div class="container">
+        <div class="section-head reveal">
+            <div class="section-label">Platform Features</div>
+            <h2>Research tools built for<br>how experts actually work</h2>
+            <p>From natural-language AI queries to raw CSV exports, the ICI platform meets researchers, lawyers, and policymakers wherever they are in their workflow.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">AI</div>
+                <h3>AI Research Assistant</h3>
+                <p>Ask any question in plain English. Claude Sonnet answers using live database statistics — not approximations from training data — and maintains context across a full conversation.</p>
+            </div>
+            <div class="feature-card reveal" style="transition-delay:0.08s">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">VIZ</div>
+                <h3>Interactive Visualisations</h3>
+                <p>Time-series line charts, state-comparison bars, law-type breakdowns, and Trump-Effect analyses — all rendered live in the browser using Chart.js with a dark research aesthetic.</p>
+            </div>
+            <div class="feature-card reveal" style="transition-delay:0.24s">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">CSV</div>
+                <h3>CSV Data Export</h3>
+                <p>Download any filtered result set as a standards-compliant CSV for use in Stata, R, Python, or Excel. Export the full database or just the 47 sanctuary laws passed in Illinois — your choice.</p>
+            </div>
+            <div class="feature-card reveal" style="transition-delay:0.32s">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">LOG</div>
+                <h3>Persistent Chat History</h3>
+                <p>Every AI conversation is saved to a local SQLite database. Return tomorrow, pick up where you left off. Rename, delete, or search past sessions from the sidebar.</p>
+            </div>
+            <div class="feature-card reveal" style="transition-delay:0.4s">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--accent-light);">ICI</div>
+                <h3>ICI Tier Scoring</h3>
+                <p>Each law is scored ±1 to ±4 based on how broadly it affects immigrant life. Scores are explained in plain language, traceable back to the original academic methodology paper.</p>
+            </div>
+            <div class="feature-card reveal" style="transition-delay:0.48s">
+                <div class="feature-icon" style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--positive);">OA</div>
+                <h3>Open Access Database</h3>
+                <p>The full 13,524-law database is freely accessible with no paywall or sign-in. Built on open academic research and designed to support government, legal, and scholarly work at any scale.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     WHO WE SERVE
+══════════════════════════════════════════════════════════════════ -->
+<section id="who-we-serve">
+    <div class="container">
+        <div class="section-head reveal">
+            <div class="section-label">Who We Serve</div>
+            <h2>Built for the professionals<br>shaping immigration policy</h2>
+            <p>The ICI platform serves anyone who needs to understand the U.S. sub-federal immigration landscape quickly, accurately, and at scale.</p>
+        </div>
+
+        <div class="serve-grid">
+            <!-- Card 1 -->
+            <div class="serve-card reveal">
+                <h3>Government &amp; Policy Makers</h3>
+                <p>Federal agencies, state legislatures, and local government offices tracking the national immigration regulatory environment for compliance, litigation, or policy development.</p>
+                <ul class="serve-list">
+                    <li>DHS &amp; ICE enforcement analysts</li>
+                    <li>State attorneys general offices</li>
+                    <li>Congressional research staff</li>
+                    <li>City &amp; county counsel offices</li>
+                    <li>USCIS policy development teams</li>
+                </ul>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="serve-card reveal" style="transition-delay:0.1s">
+                <h3>Immigration Law Firms</h3>
+                <p>Attorneys and paralegals who need instant answers on the regulatory climate in a specific jurisdiction before advising clients on relocation, enforcement risk, or compliance strategy.</p>
+                <ul class="serve-list">
+                    <li>Sanctuary city &amp; detainer research</li>
+                    <li>State-level employer obligations (E-Verify)</li>
+                    <li>287(g) agreement status by county</li>
+                    <li>Historical law searches for case strategy</li>
+                    <li>Comparative jurisdiction analysis</li>
+                </ul>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="serve-card reveal" style="transition-delay:0.2s">
+                <h3>Researchers &amp; Students</h3>
+                <p>Law review editors, economics PhD students, and public policy researchers studying the causes and effects of sub-federal immigration regulation at scale.</p>
+                <ul class="serve-list">
+                    <li>Immigration law &amp; policy scholars</li>
+                    <li>Labor economics researchers</li>
+                    <li>Public policy &amp; sociology departments</li>
+                    <li>Undergraduate &amp; JD thesis writers</li>
+                    <li>Think tanks &amp; NGOs</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     RESEARCH TOOLS — quick access cards
+══════════════════════════════════════════════════════════════════ -->
+<section id="tools">
+    <div class="container">
+        <div class="section-head reveal">
+            <div class="section-label">Get Started</div>
+            <h2>Three ways to explore the data</h2>
+            <p>Choose the tool that fits your workflow. All three draw from the same 13,524-law database.</p>
+        </div>
+
+        <div class="tools-grid">
+            <a href="chatbot-ai.html" class="tool-card primary reveal">
+                <div class="tool-card-label">Recommended</div>
+                <h3>AI Research Assistant</h3>
+                <p>Ask complex, multi-part questions about immigration trends, state comparisons, or the Trump Effect in natural language. Claude answers with real database numbers and keeps memory across the conversation.</p>
+                <span class="tool-card-arrow">AI Assistant →</span>
+            </a>
+
+            <a href="index.html" class="tool-card secondary reveal" style="transition-delay:0.1s">
+                <div class="tool-card-label">Academic</div>
+                <h3>Research Paper</h3>
+                <p>Full methodology, figures, and findings from the original ICI publication by Pham &amp; Pham (2024).</p>
+                <span class="tool-card-arrow">Read Paper →</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     TEAM
+══════════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════
+     CTA
+══════════════════════════════════════════════════════════════════ -->
+<section id="cta">
+    <div class="container cta-inner">
+        <div class="reveal">
+            <div class="section-label" style="margin: 0 auto 18px; display:table;">Start Exploring</div>
+            <h2>The data is open.<br><span class="gradient-text">The research starts here.</span></h2>
+            <p>Every law in the ICI database is free to explore, filter, and export. No sign-in required for the data tools.</p>
+            <div class="cta-btns">
+                <a href="chatbot-ai.html" class="btn-hero-primary">AI Assistant →</a>
+                <a href="index.html" class="btn-hero-secondary">Research Paper</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     CONTACT / REQUEST A DEMO
+══════════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════════════ -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <a href="home.html" class="nav-logo" style="display:inline-flex;">
+                    <span class="nav-logo-text" style="font-size:0.88rem;">Immigrant Climate Index</span>
+                </a>
+                <p>A quantitative measure of the regulatory climate for immigrants across all U.S. jurisdictions — from federal policy to local ordinance.</p>
+                <p style="font-size:0.73rem;color:#52525B;">© 2024 Huyen Pham &amp; Pham Hoang Van.<br>Texas A&amp;M University School of Law &amp; Baylor University.</p>
+            </div>
+
+            <div class="footer-col">
+                <h4>Platform</h4>
+                <a href="chatbot-ai.html">AI Research Assistant</a>
+                <a href="index.html">Research Paper</a>
+            </div>
+
+            <div class="footer-col">
+                <h4>Navigate</h4>
+                <a href="#why-ici">Why ICI</a>
+                <a href="#features">Features</a>
+                <a href="#who-we-serve">Who We Serve</a>
+                <a href="team.html">Team</a>
+                <a href="contact.html">Contact</a>
+            </div>
+
+            <div class="footer-col">
+                <h4>Authors</h4>
+                <a href="https://www.law.tamu.edu/" target="_blank">Texas A&amp;M School of Law</a>
+                <a href="https://hankamer.baylor.edu/economics" target="_blank">Baylor Economics</a>
+                <a href="https://hankamer.baylor.edu/person/van-h-pham" target="_blank">Prof. Van H. Pham</a>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>Built for open academic research. Database covers 2005–2026.</p>
+            <div class="footer-bottom-links">
+                <a href="index.html">Research</a>
+                <a href="chatbot-ai.html">AI Chat</a>
+                <a href="home.html">Home</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+<script>
+    // ── Navbar scroll effect ───────────────────────────────────────────────
+    // Adds a frosted-glass background once the user scrolls past the fold.
+    // The background is transparent initially so the hero gradient bleeds
+    // into the nav area for a seamless look.
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+        navbar.classList.toggle('scrolled', window.scrollY > 40);
+    }, { passive: true });
+
+    // ── Smooth active-link tracking ────────────────────────────────────────
+    // Highlights the current nav link based on which section is in view.
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: '-40% 0px -55% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+
+    // ── Scroll-reveal animations ───────────────────────────────────────────
+    // Elements with class "reveal" start invisible (opacity:0, translateY:28px).
+    // When they enter the viewport, "visible" is added which transitions them in.
+    // transition-delay on individual cards staggers the animation for the grid.
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                revealObserver.unobserve(entry.target); // only animate once
+            }
+        });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // ── Animated stat counters in hero ────────────────────────────────────
+    // Counts up from 0 to the target number over ~1.2 seconds using
+    // requestAnimationFrame for a smooth, performance-friendly animation.
+    function animateCounter(el, target, suffix) {
+        el.classList.add('counting');
+        const start = performance.now();
+        const duration = 1200;
+
+        function step(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.floor(eased * target);
+            el.textContent = current.toLocaleString() + (suffix || '');
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                el.classList.remove('counting');
+            }
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    // Trigger counters when the hero stats row enters the viewport
+    const statsEl = document.querySelector('.hero-stats');
+    const statsObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+            document.querySelector('.hero-stats .hero-stat:nth-child(1) .hero-stat-num') && animateCounter(document.querySelector('.hero-stats .hero-stat:nth-child(1) .hero-stat-num'), 13524);
+            document.querySelector('.hero-stats .hero-stat:nth-child(2) .hero-stat-num') && animateCounter(document.querySelector('.hero-stats .hero-stat:nth-child(2) .hero-stat-num'), 50);
+            document.querySelector('.hero-stats .hero-stat:nth-child(3) .hero-stat-num') && animateCounter(document.querySelector('.hero-stats .hero-stat:nth-child(3) .hero-stat-num'), 21, ' yrs');
+            document.querySelector('.hero-stats .hero-stat:nth-child(4) .hero-stat-num') && animateCounter(document.querySelector('.hero-stats .hero-stat:nth-child(4) .hero-stat-num'), 3491);
+            document.querySelector('.hero-stats .hero-stat:nth-child(5) .hero-stat-num') && animateCounter(document.querySelector('.hero-stats .hero-stat:nth-child(5) .hero-stat-num'), 1000, '+');
+            statsObserver.disconnect();
+        }
+    }, { threshold: 0.3 });
+
+    if (statsEl) statsObserver.observe(statsEl);
+
+    // ── Contact form (frontend-only placeholder) ───────────────────────────
+    // Intercepts the native submit, shows a success message in place of the
+    // form. When the backend is wired up, replace this handler with a fetch()
+    // POST to the API endpoint and keep the success/error display logic.
+    const contactForm = document.getElementById('contactForm');
+    const formSuccess = document.getElementById('formSuccess');
+
+    if (contactForm) {
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            contactForm.style.display = 'none';
+            formSuccess.style.display = 'block';
+        });
+    }
+</script>
+
+</body>
+</html>
