@@ -1228,6 +1228,14 @@
     //   → showResultsVisualization() draws the chart
     // =========================================================================
 
+    // When this page is served from GitHub Pages there is no backend on the
+    // same origin (Pages is static-only), so API calls are pointed at the
+    // separately-hosted backend instead. Local dev via `node server.js` and
+    // any other origin keep using relative paths (same-origin).
+    const API_BASE = /\.github\.io$/.test(location.hostname)
+      ? 'https://REPLACE-WITH-RENDER-URL.onrender.com'
+      : '';
+
     // Dark theme defaults applied to every Chart.js chart on this page
     Chart.defaults.color = '#A1A1AA';
     Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
@@ -1381,7 +1389,7 @@
     // ─────────────────────────────────────────────────────────────────────────
     async function loadChatList() {
         try {
-            const resp = await fetch('/api/chats');
+            const resp = await fetch(`${API_BASE}/api/chats`);
             const chats = await resp.json();
             renderChatList(chats);
         } catch { /* server may not be running */ }
@@ -1433,7 +1441,7 @@
 
     async function createNewChat() {
         try {
-            const resp = await fetch('/api/chats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'New Chat' }) });
+            const resp = await fetch(`${API_BASE}/api/chats`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'New Chat' }) });
             const chat = await resp.json();
             currentChatId = chat.id;
             localStorage.setItem('ici-active-chat', currentChatId);
@@ -1447,7 +1455,7 @@
 
     async function loadChatFromDB(chatId) {
         try {
-            const resp = await fetch(`/api/chats/${chatId}`);
+            const resp = await fetch(`${API_BASE}/api/chats/${chatId}`);
             if (!resp.ok) return;
             const chat = await resp.json();
 
@@ -1503,7 +1511,7 @@
 
     async function deleteChat(chatId) {
         try {
-            await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/api/chats/${chatId}`, { method: 'DELETE' });
             if (currentChatId === chatId) startNewChat();
             await loadChatList();
         } catch { /* offline mode */ }
@@ -1527,7 +1535,7 @@
         const finish = async () => {
             const newName = input.value.trim() || currentName;
             try {
-                await fetch(`/api/chats/${chatId}`, {
+                await fetch(`${API_BASE}/api/chats/${chatId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: newName })
@@ -1838,7 +1846,7 @@ ${JSON.stringify(dataContext, null, 2)}`;
             { role: 'user', content: query }
         ];
 
-        const response = await fetch('/api/chat', {
+        const response = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

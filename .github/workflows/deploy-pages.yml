@@ -1,0 +1,63 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble static site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+
+          # Frontend pages (home, team, contact, chatbot, chatbot-ai)
+          cp src/pages/*.html _site/
+
+          # Data consumed client-side by the data-explorer chatbot
+          cp data/ici_data.json _site/
+
+          # Research publication moves to a sibling page, freeing up
+          # index.html at the Pages root for the landing page below.
+          cp research/index.html _site/research.html
+
+          # Rewrite internal links to match the flattened layout.
+          # Order matters: point old "index.html" (research doc) links at
+          # research.html *before* home.html is promoted to index.html,
+          # so the newly-created index.html links aren't re-rewritten.
+          sed -i 's/index\.html/research.html/g' _site/*.html
+          sed -i 's/home\.html/index.html/g' _site/*.html
+
+          # Promote the landing page to the Pages root.
+          mv _site/home.html _site/index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

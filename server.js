@@ -225,7 +225,7 @@ async function generateChatTitle(apiKey, userMessage) {
 //   POST   /api/chat           → send a message, proxy to Claude, persist reply
 //   GET    /*                  → serve static files from the project root
 // ─────────────────────────────────────────────────────────────────────────────
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 http.createServer(async (req, res) => {
 
