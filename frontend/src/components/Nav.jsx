@@ -52,7 +52,6 @@ export default function Nav() {
                     <Link to="/#features" className="nav-link" data-hash="features">Features</Link>
                     <Link to="/#who-we-serve" className="nav-link" data-hash="who-we-serve">Who We Serve</Link>
                     <NavLink to="/team" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Team</NavLink>
-                    <NavLink to="/contact" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Contact</NavLink>
 
                     <div className="nav-dropdown">
                         <button className="nav-dropdown-btn">
@@ -78,6 +77,7 @@ export default function Nav() {
                 </div>
 
                 <div className="nav-right">
+                    <NavLink to="/contact" className={({ isActive }) => `btn-contact${isActive ? ' active' : ''}`}>Contact Us</NavLink>
                     <a href="#" className="btn-ghost">Log in</a>
                     <a href="#" className="btn-primary">Sign up</a>
                 </div>

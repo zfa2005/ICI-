@@ -342,6 +342,31 @@ a { color: inherit; }
     transform: translateY(-1px);
 }
 
+/* Outlined Contact CTA — transparent with an accent border; fills on hover.
+   The extra right margin sets it apart from the auth buttons. */
+.btn-contact {
+    padding: 7px 18px;
+    margin-right: 8px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: var(--accent-light);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.btn-contact:hover,
+.btn-contact.active {
+    background: var(--accent);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+}
+
 .btn-hero-primary {
     display: inline-flex;
     align-items: center;
@@ -624,6 +649,11 @@ footer {
 
 @media (max-width: 600px) {
     .footer-inner { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+    /* Contact stays reachable via the burger menu on small screens */
+    .nav-right .btn-contact { display: none; }
 }
 
 @media (max-width: 480px) {

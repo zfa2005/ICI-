@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import Reveal from '../components/Reveal';
 import './Contact.css';
 
 export default function Contact() {
@@ -11,48 +10,60 @@ export default function Contact() {
     }
 
     return (
-        <>
-            <div className="page-hero">
-                <div className="container">
-                    <div className="section-label">Get in Touch</div>
-                    <h1>Request a demo or<br /><span className="gradient-text">send us an enquiry</span></h1>
-                    <p>Interested in integrating the ICI into your research workflow, litigation strategy, or policy toolkit? The research team will get back to you within 2 business days.</p>
-                </div>
-            </div>
+        <div className="contact-hero">
+            <div className="contact-orb contact-orb-1" />
+            <div className="contact-orb contact-orb-2" />
+            <div className="container">
+                <div className="contact-hero-grid">
 
-            <div className="contact-section">
-                <div className="container">
-                    <div className="contact-grid">
-                        <Reveal>
-                            <h2 className="contact-info">Who should reach out</h2>
-                            <p className="contact-info">The ICI platform serves government agencies, law firms, and academic researchers. Tell us what you're working on and we'll find the best way to help.</p>
-                            <ul className="contact-perks">
-                                <li>
-                                    <span className="perk-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em' }}>GOV</span>
-                                    <span><strong style={{ color: 'var(--text)' }}>Government &amp; policy agencies</strong> — request a briefing on jurisdiction-level ICI scores</span>
-                                </li>
-                                <li>
-                                    <span className="perk-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em' }}>LAW</span>
-                                    <span><strong style={{ color: 'var(--text)' }}>Law firms</strong> — enquire about bulk data access or custom jurisdiction reports</span>
-                                </li>
-                                <li>
-                                    <span className="perk-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em' }}>RES</span>
-                                    <span><strong style={{ color: 'var(--text)' }}>Researchers &amp; universities</strong> — collaboration, citation, or dataset requests</span>
-                                </li>
-                                <li>
-                                    <span className="perk-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em' }}>GEN</span>
-                                    <span><strong style={{ color: 'var(--text)' }}>General enquiries</strong> — questions about the methodology, data coverage, or the ICI platform</span>
-                                </li>
-                            </ul>
-                        </Reveal>
+                    {/* Left — pitch, at the same level as the form */}
+                    <div className="contact-hero-left">
+                        <div className="section-label">Get in Touch</div>
+                        <h1>Request a demo or<br /><span className="gradient-text">send us an enquiry</span></h1>
+                        <p className="contact-lede">
+                            Interested in integrating the ICI into your research workflow, litigation
+                            strategy, or policy toolkit? The research team will get back to you within
+                            2 business days.
+                        </p>
 
-                        <Reveal delay="0.1s" className="contact-form-card">
-                            {submitted ? (
-                                <div className="form-success">
-                                    <h3>Enquiry received</h3>
-                                    <p>Thank you — the research team will be in touch within 2 business days.</p>
+                        <ul className="contact-perks">
+                            <li>
+                                <span className="perk-icon">GOV</span>
+                                <span><strong>Government &amp; policy agencies</strong> — request a briefing on jurisdiction-level ICI scores</span>
+                            </li>
+                            <li>
+                                <span className="perk-icon">LAW</span>
+                                <span><strong>Law firms</strong> — enquire about bulk data access or custom jurisdiction reports</span>
+                            </li>
+                            <li>
+                                <span className="perk-icon">RES</span>
+                                <span><strong>Researchers &amp; universities</strong> — collaboration, citation, or dataset requests</span>
+                            </li>
+                            <li>
+                                <span className="perk-icon">GEN</span>
+                                <span><strong>General enquiries</strong> — questions about the methodology, data coverage, or the ICI platform</span>
+                            </li>
+                        </ul>
+
+                        <div className="contact-trust">
+                            <span className="contact-trust-dot" />
+                            Typical response time: under 2 business days
+                        </div>
+                    </div>
+
+                    {/* Right — the form, side by side with the pitch */}
+                    <div className="contact-form-card">
+                        {submitted ? (
+                            <div className="form-success">
+                                <h3>Enquiry received</h3>
+                                <p>Thank you — the research team will be in touch within 2 business days.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="form-card-head">
+                                    <h2>Request a demo</h2>
+                                    <p>Tell us what you're working on — we'll tailor the walkthrough to your use case.</p>
                                 </div>
-                            ) : (
                                 <form onSubmit={handleSubmit} autoComplete="off">
                                     <div className="form-row">
                                         <div className="form-group">
@@ -75,11 +86,12 @@ export default function Contact() {
                                     <button type="submit" className="form-submit">Send Enquiry →</button>
                                     <p className="form-note">We typically respond within 2 business days. Fields marked <span style={{ color: 'var(--negative)' }}>*</span> are required.</p>
                                 </form>
-                            )}
-                        </Reveal>
+                            </>
+                        )}
                     </div>
+
                 </div>
             </div>
-        </>
+        </div>
     );
 }
