@@ -1,11 +1,53 @@
 import { useState } from 'react';
 import './Contact.css';
 
+// The form asks for an *official* email, so free consumer providers are
+// rejected. Matching the provider name (first label of the domain) catches
+// regional variants like yahoo.co.uk without listing every TLD; ambiguous
+// short domains are matched exactly instead.
+const PERSONAL_EMAIL_PROVIDERS = new Set([
+    'gmail', 'googlemail', 'yahoo', 'ymail', 'rocketmail', 'hotmail',
+    'outlook', 'live', 'msn', 'aol', 'icloud', 'protonmail', 'proton',
+    'tutanota', 'tuta', 'gmx', 'yandex', 'zoho', 'rediffmail', 'qq',
+    '163', '126', 'sina', 'naver', 'daum', 'hey', 'fastmail', 'hushmail',
+    'mailinator', 'guerrillamail', 'tempmail', 'temp-mail', 'yopmail',
+]);
+const PERSONAL_EMAIL_DOMAINS = new Set([
+    'mail.com', 'mail.ru', 'me.com', 'mac.com', 'pm.me', 'web.de',
+    't-online.de', 'inbox.com', 'email.com',
+]);
+
+function organisationEmailError(value) {
+    const parts = value.trim().toLowerCase().split('@');
+    if (parts.length !== 2 || !parts[1]) return ''; // format itself is the browser's job (type=email)
+    const domain = parts[1];
+    if (PERSONAL_EMAIL_PROVIDERS.has(domain.split('.')[0]) || PERSONAL_EMAIL_DOMAINS.has(domain)) {
+        return "Personal email providers (Gmail, Yahoo, Outlook…) aren't accepted — please use your organisation's email address.";
+    }
+    return '';
+}
+
 export default function Contact() {
     const [submitted, setSubmitted] = useState(false);
+    const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState('');
+
+    function handleEmailChange(e) {
+        const value = e.target.value;
+        setEmail(value);
+        // Once flagged, clear the error the moment the address becomes valid —
+        // but don't nag while they're still typing a fresh one.
+        if (emailError && !organisationEmailError(value)) setEmailError('');
+    }
 
     function handleSubmit(e) {
         e.preventDefault();
+        const err = organisationEmailError(email);
+        if (err) {
+            setEmailError(err);
+            document.getElementById('cf-email')?.focus();
+            return;
+        }
         setSubmitted(true);
     }
 
@@ -77,7 +119,17 @@ export default function Contact() {
                                     </div>
                                     <div className="form-group">
                                         <label htmlFor="cf-email">Official Email <span className="required">*</span></label>
-                                        <input id="cf-email" type="email" className="form-control" placeholder="jane@organisation.org" required />
+                                        <input
+                                            id="cf-email"
+                                            type="email"
+                                            className={`form-control${emailError ? ' invalid' : ''}`}
+                                            placeholder="jane@organisation.org"
+                                            required
+                                            value={email}
+                                            onChange={handleEmailChange}
+                                            onBlur={() => setEmailError(organisationEmailError(email))}
+                                        />
+                                        {emailError && <p className="form-error" role="alert">{emailError}</p>}
                                     </div>
                                     <div className="form-group">
                                         <label htmlFor="cf-enquiry">Enquiry <span className="required">*</span></label>
