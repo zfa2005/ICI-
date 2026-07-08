@@ -203,8 +203,8 @@ export default function Home() {
                 <div className="container">
                     <Reveal as="div" className="section-head">
                         <div className="section-label">Get Started</div>
-                        <h2>Three ways to explore the data</h2>
-                        <p>Choose the tool that fits your workflow. All three draw from the same 13,524-law database.</p>
+                        <h2>Ask the data.<br />Read the research.</h2>
+                        <p>Get instant answers from the AI assistant, or go deep with the published paper — both draw on the same 13,524-law database.</p>
                     </Reveal>
 
                     <div className="tools-grid">
