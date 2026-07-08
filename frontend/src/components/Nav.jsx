@@ -78,8 +78,6 @@ export default function Nav() {
 
                 <div className="nav-right">
                     <NavLink to="/contact" className={({ isActive }) => `btn-contact${isActive ? ' active' : ''}`}>Contact Us</NavLink>
-                    <a href="#" className="btn-ghost">Log in</a>
-                    <a href="#" className="btn-primary">Sign up</a>
                 </div>
 
                 <button

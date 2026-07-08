@@ -342,11 +342,9 @@ a { color: inherit; }
     transform: translateY(-1px);
 }
 
-/* Outlined Contact CTA — transparent with an accent border; fills on hover.
-   The extra right margin sets it apart from the auth buttons. */
+/* Outlined Contact CTA — transparent with an accent border; fills on hover. */
 .btn-contact {
     padding: 7px 18px;
-    margin-right: 8px;
     background: transparent;
     border: 1px solid var(--accent);
     border-radius: 8px;
@@ -658,6 +656,5 @@ footer {
 
 @media (max-width: 480px) {
     .nav-inner { gap: 12px; padding: 0 16px; }
-    .nav-right .btn-ghost { display: none; }
     .nav-logo-text { font-size: 0.85rem; }
 }
