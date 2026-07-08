@@ -604,4 +604,23 @@ section {
 @media (max-width: 600px) {
     .hero-stats { flex-direction: column; }
     .hero-stat + .hero-stat::before { display: none; }
+
+    section { padding: 64px 0; }
+
+    .hero { padding: calc(var(--nav-h) + 48px) 0 64px; }
+
+    .hero-badge {
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 4px;
+        max-width: 100%;
+    }
+    .hero-badge-sep { display: none; }
+
+    .hero-ctas { margin-bottom: 44px; }
+
+    .section-head { margin-bottom: 40px; }
+
+    .trust-bar { flex-direction: column; gap: 10px; }
+    .trust-label { margin-right: 0; }
 }

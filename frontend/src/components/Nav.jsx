@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import useNavbarScroll from '../hooks/useNavbarScroll';
 import { withBase } from '../utils/withBase';
@@ -9,6 +9,10 @@ export default function Nav() {
     const scrolled = useNavbarScroll();
     const location = useLocation();
     const onHome = location.pathname === '/';
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    // Close the mobile menu whenever navigation happens.
+    useEffect(() => { setMenuOpen(false); }, [location.pathname, location.hash]);
 
     // Highlight whichever hash-section is currently in view, but only on the
     // home page where those sections actually exist.
@@ -33,8 +37,10 @@ export default function Nav() {
         return () => observer.disconnect();
     }, [onHome]);
 
+    const close = () => setMenuOpen(false);
+
     return (
-        <nav className={`navbar${scrolled ? ' scrolled' : ''}`} id="navbar">
+        <nav className={`navbar${scrolled || menuOpen ? ' scrolled' : ''}`} id="navbar">
             <div className="nav-inner">
                 <Link to="/" className="nav-logo">
                     <span className="nav-logo-text">Immigrant Climate Index</span>
@@ -75,6 +81,27 @@ export default function Nav() {
                     <a href="#" className="btn-ghost">Log in</a>
                     <a href="#" className="btn-primary">Sign up</a>
                 </div>
+
+                <button
+                    className={`nav-burger${menuOpen ? ' open' : ''}`}
+                    aria-label="Toggle navigation menu"
+                    aria-expanded={menuOpen}
+                    onClick={() => setMenuOpen(o => !o)}
+                >
+                    <span /><span /><span />
+                </button>
+            </div>
+
+            <div className={`nav-mobile-menu${menuOpen ? ' open' : ''}`}>
+                <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : undefined} onClick={close}>Home</NavLink>
+                <Link to="/#why-ici" onClick={close}>Why ICI</Link>
+                <Link to="/#features" onClick={close}>Features</Link>
+                <Link to="/#who-we-serve" onClick={close}>Who We Serve</Link>
+                <NavLink to="/team" className={({ isActive }) => isActive ? 'active' : undefined} onClick={close}>Team</NavLink>
+                <NavLink to="/contact" className={({ isActive }) => isActive ? 'active' : undefined} onClick={close}>Contact</NavLink>
+                <div className="menu-section">Research</div>
+                <a href={withBase('research.html')} onClick={close}>Research Publication</a>
+                <NavLink to="/assistant" className={({ isActive }) => isActive ? 'active' : undefined} onClick={close}>AI Research Assistant</NavLink>
             </div>
         </nav>
     );

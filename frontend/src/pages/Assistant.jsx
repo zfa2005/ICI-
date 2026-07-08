@@ -851,7 +851,12 @@ ${JSON.stringify(dataContext, null, 2)}`;
         attachExampleListeners();
         attachEmptyCardListeners();
 
-        if (localStorage.getItem('ici-sidebar') === '0') setSidebarCollapsed(true);
+        // Mobile defaults to the chats panel closed (it overlays the chat
+        // there); desktop restores the user's saved preference. Added directly
+        // as a class so the mobile default doesn't overwrite that preference.
+        if (localStorage.getItem('ici-sidebar') === '0' || window.matchMedia('(max-width: 900px)').matches) {
+            root.classList.add('sidebar-collapsed');
+        }
 
         loadData();
         loadChatList();

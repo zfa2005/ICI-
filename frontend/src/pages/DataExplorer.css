@@ -950,3 +950,45 @@
     color: var(--text-muted);
     flex-shrink: 0;
 }
+
+/* ── MOBILE ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .explorer header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+    .explorer .header-meta { align-items: flex-start; }
+    .explorer .header-authors { text-align: left; }
+    .explorer .header-chips { flex-wrap: wrap; }
+    .explorer .page-nav { flex-wrap: wrap; }
+
+    /* 6-across stat strip becomes a bordered grid; the per-card border-left
+       rules only make sense in a single row, so gaps draw the grid lines
+       instead. */
+    .explorer .stats-bar {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--border-subtle);
+    }
+    .explorer .stat-card { background: var(--surface-1); }
+    .explorer .stat-card + .stat-card,
+    .explorer .stat-card:nth-child(4) { border-left: none; }
+
+    .explorer .type-strip { flex-direction: column; align-items: stretch; }
+    .explorer .type-strip-label {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .explorer .results-toolbar { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 640px) {
+    .explorer .container { padding: 14px 12px; }
+    .explorer header { padding: 18px 16px; }
+    .explorer .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .explorer .stat-card { padding: 12px 10px; }
+    .explorer .stat-card .number { font-size: 1.2rem; }
+    .explorer .truncate { max-width: 180px; }
+}

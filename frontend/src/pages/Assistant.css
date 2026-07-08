@@ -24,6 +24,7 @@
         linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
     background-size: 40px 40px;
     height: 100vh;
+    height: 100dvh; /* mobile browsers: exclude the collapsing address bar */
     overflow: hidden;
     display: flex;
 }
@@ -273,12 +274,20 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     min-width: 0;
 }
 
 @media (max-width: 900px) {
-    .assistant .history-panel { display: none; }
+    /* The chats panel becomes an off-canvas overlay: hidden while
+       .sidebar-collapsed (the mobile default, set on mount), slides over the
+       chat when opened via the ICI button. */
+    .assistant .history-panel {
+        width: 250px;
+        box-shadow: 0 0 60px rgba(0,0,0,0.55);
+    }
+    .assistant.sidebar-collapsed .history-panel { transform: translateX(-100%); }
     .assistant .main-wrapper { margin-left: 0; }
 }
 
@@ -837,4 +846,33 @@
     border-color: var(--accent);
     color: var(--text);
     background: var(--accent-glow);
+}
+
+/* ── MOBILE ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .assistant .top-bar {
+        height: auto;
+        min-height: 52px;
+        padding: 8px 10px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .assistant .examples-menu {
+        min-width: 260px;
+        max-width: calc(100vw - 20px);
+    }
+
+    .assistant .empty-state { padding: 32px 16px 20px; min-height: 200px; }
+    .assistant .empty-state-title { font-size: 1.3rem; margin-bottom: 24px; }
+    .assistant .empty-cards { grid-template-columns: 1fr; }
+
+    .assistant .chat-messages { padding: 20px 12px 16px; }
+    .assistant .message-content { max-width: 95%; }
+
+    .assistant .input-zone { padding: 10px 10px 14px; }
+
+    .assistant .results-section { padding: 12px; }
+    .assistant .results-chart { height: 220px; }
+    .assistant .truncate { max-width: 140px; }
 }
