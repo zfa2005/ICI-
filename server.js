@@ -104,6 +104,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at);
 `);
 
+// Lightweight migrations: CREATE TABLE IF NOT EXISTS won't add columns to a
+// database created before these fields existed, so check and ALTER instead.
+//   pinned   — pinned chats sort to the top of the sidebar
+//   archived — hidden into a collapsible "Archived" section
+//   project  — free-text label; chats sharing one are grouped in the sidebar
+const chatCols = db.prepare('PRAGMA table_info(chats)').all().map(c => c.name);
+if (!chatCols.includes('pinned'))   db.exec('ALTER TABLE chats ADD COLUMN pinned   INTEGER NOT NULL DEFAULT 0');
+if (!chatCols.includes('archived')) db.exec('ALTER TABLE chats ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+if (!chatCols.includes('project'))  db.exec('ALTER TABLE chats ADD COLUMN project  TEXT');
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 3 — Prepared statements
@@ -116,16 +126,27 @@ db.exec(`
 const stmts = {
   // List all chats newest-first, include a preview of the last message
   listChats:  db.prepare(`
-    SELECT c.id, c.name, c.updated_at,
+    SELECT c.id, c.name, c.updated_at, c.pinned, c.archived, c.project,
            (SELECT content FROM messages WHERE chat_id = c.id
             ORDER BY created_at DESC LIMIT 1) AS preview
-    FROM chats c ORDER BY c.updated_at DESC
+    FROM chats c ORDER BY c.pinned DESC, c.updated_at DESC
   `),
 
   getChat:    db.prepare('SELECT * FROM chats WHERE id = ?'),
   getMsgs:    db.prepare('SELECT id, role, content, created_at FROM messages WHERE chat_id = ? ORDER BY created_at ASC'),
   createChat: db.prepare('INSERT INTO chats (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)'),
   renameChat: db.prepare('UPDATE chats SET name = ?, updated_at = ? WHERE id = ?'),
+
+  // Pin/archive/project deliberately do NOT bump updated_at — organising a
+  // chat shouldn't change its position in the recency ordering.
+  setPinned:   db.prepare('UPDATE chats SET pinned = ? WHERE id = ?'),
+  setArchived: db.prepare('UPDATE chats SET archived = ? WHERE id = ?'),
+  setProject:  db.prepare('UPDATE chats SET project = ? WHERE id = ?'),
+
+  // Projects have no table of their own — they exist as labels on chats, so
+  // renaming/deleting one is a bulk update across its chats.
+  renameProject: db.prepare('UPDATE chats SET project = ? WHERE project = ?'),
+  clearProject:  db.prepare('UPDATE chats SET project = NULL WHERE project = ?'),
   deleteChat: db.prepare('DELETE FROM chats WHERE id = ?'),
   insertMsg:  db.prepare('INSERT INTO messages (chat_id, role, content, created_at) VALUES (?, ?, ?, ?)'),
 
@@ -278,10 +299,18 @@ http.createServer(async (req, res) => {
 
 
   // ── PATCH /api/chats/:id ──────────────────────────────────────────────────
-  // Renames a chat (user double-clicks the title in the sidebar).
+  // Partial update: any combination of name / pinned / archived / project.
+  // Only the fields present in the body are touched.
   if (chatIdM && req.method === 'PATCH') {
     const body = await parseBody(req);
-    stmts.renameChat.run((body.name || 'Chat').trim(), Date.now(), chatIdM[1]);
+    const id   = chatIdM[1];
+    if (body.name     !== undefined) stmts.renameChat.run((body.name || 'Chat').trim(), Date.now(), id);
+    if (body.pinned   !== undefined) stmts.setPinned.run(body.pinned ? 1 : 0, id);
+    if (body.archived !== undefined) stmts.setArchived.run(body.archived ? 1 : 0, id);
+    if (body.project  !== undefined) {
+      const project = body.project ? String(body.project).trim() : null;
+      stmts.setProject.run(project || null, id);
+    }
     return json(res, 200, { ok: true });
   }
 
@@ -290,6 +319,22 @@ http.createServer(async (req, res) => {
   // Deletes a chat; the ON DELETE CASCADE in the schema removes its messages.
   if (chatIdM && req.method === 'DELETE') {
     stmts.deleteChat.run(chatIdM[1]);
+    return json(res, 200, { ok: true });
+  }
+
+
+  // ── PATCH /api/projects/:name — rename a project across all its chats ─────
+  // ── DELETE /api/projects/:name — dissolve it (chats are kept, unlabelled) ─
+  const projM = pathname.match(/^\/api\/projects\/([^/]+)$/);
+  if (projM && req.method === 'PATCH') {
+    const body    = await parseBody(req);
+    const newName = (body.name || '').trim();
+    if (!newName) return json(res, 400, { error: 'Project name required' });
+    stmts.renameProject.run(newName, decodeURIComponent(projM[1]));
+    return json(res, 200, { ok: true });
+  }
+  if (projM && req.method === 'DELETE') {
+    stmts.clearProject.run(decodeURIComponent(projM[1]));
     return json(res, 200, { ok: true });
   }
 

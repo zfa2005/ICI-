@@ -36,6 +36,22 @@ export default function Assistant() {
         let vizOpen = false;
         let pendingVizContext = null;
         let _pendingDeleteId = null;
+        let chatCache = [];        // last-fetched chat list, for the ⋯ menu
+        let chatMenuTarget = null; // chat (or {__project}) the open ⋯ menu belongs to
+        let projectTarget = null;  // chat the project modal is editing
+        let archivedOpen = false;  // archived section expanded?
+        let currentProjectView = null;   // single-project page currently open, or null
+        let projectsOverviewOpen = false; // "Projects" overview list currently open?
+        let projectModalMode = 'assign'; // 'assign' (chat → project) | 'renameproj'
+        let projectRenameOld = null;     // original name while renaming a project
+        let _deleteMode = 'chat';        // delete modal target: 'chat' | 'project'
+
+        const projectNames = () =>
+            [...new Set(chatCache.filter(c => c.project).map(c => c.project))].sort();
+
+        const esc = (s) => String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
         const DEFAULT_SUGGESTIONS = [
             { label: 'Trends', query: 'What are the main trends in immigration legislation since 2005?' },
@@ -153,44 +169,388 @@ export default function Assistant() {
             } catch { /* server may not be running */ }
         }
 
+        function chatItemHTML(c) {
+            const isActive = c.id === currentChatId;
+            return `
+            <div class="chat-item ${isActive ? 'active' : ''}${c.archived ? ' is-archived' : ''}" data-id="${c.id}">
+                ${c.pinned ? '<span class="pin-mark" title="Pinned">📌</span>' : ''}
+                <span class="chat-item-name" title="${esc(c.name)}">${esc(c.name)}</span>
+                ${c.project ? `<span class="item-project-tag" title="Project: ${esc(c.project)}">${esc(c.project)}</span>` : ''}
+                <div class="chat-item-actions">
+                    <button class="chat-action-btn menu-btn" data-id="${c.id}" title="Options">⋯</button>
+                </div>
+            </div>`;
+        }
+
+        // Sidebar stays flat and minimal — Pinned, then a plain "Recents" list,
+        // then a collapsible Archived section. Projects are deliberately NOT
+        // expanded inline here (that used to make the sidebar unreadable);
+        // browsing a project's chats happens on its own page via the
+        // "Projects" nav item instead. A small tag still marks which project a
+        // chat belongs to, without grouping/expanding anything.
         function renderChatList(chats) {
+            chatCache = chats;
             const el = $('historyList');
             if (!chats.length) {
                 el.innerHTML = '<div class="history-empty">No chats yet.<br>Start a conversation!</div>';
+            } else {
+                const activeChats = chats.filter(c => !c.archived);
+                const archivedChats = chats.filter(c => c.archived);
+                const pinnedChats = activeChats.filter(c => c.pinned);
+                const recentChats = activeChats.filter(c => !c.pinned);
+
+                let html = '';
+                if (pinnedChats.length) {
+                    html += '<div class="list-section">Pinned</div>' + pinnedChats.map(chatItemHTML).join('');
+                }
+                html += '<div class="list-section">Recents</div>';
+                html += recentChats.length ? recentChats.map(chatItemHTML).join('') : '<div class="history-empty small">No recent chats</div>';
+                if (archivedChats.length) {
+                    html += `<button class="archived-toggle${archivedOpen ? ' open' : ''}" id="archivedToggle">
+                                <span>Archived (${archivedChats.length})</span><span class="chev">▾</span>
+                             </button>
+                             <div class="archived-list${archivedOpen ? ' open' : ''}">` +
+                            archivedChats.map(chatItemHTML).join('') + '</div>';
+                }
+                el.innerHTML = html;
+
+                root.querySelectorAll('.chat-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        if (e.target.closest('.chat-action-btn')) return;
+                        loadChatFromDB(item.dataset.id);
+                    });
+                });
+
+                root.querySelectorAll('.menu-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const chat = chatCache.find(c => c.id === btn.dataset.id);
+                        if (chat) openChatMenu(btn, chat);
+                    });
+                });
+
+                const archToggle = $('archivedToggle');
+                if (archToggle) archToggle.addEventListener('click', () => {
+                    archivedOpen = !archivedOpen;
+                    renderChatList(chatCache);
+                });
+            }
+
+            // Keep whichever secondary view is open in sync with the new data
+            if (currentProjectView) renderProjectChatList();
+            if (projectsOverviewOpen) renderProjectsOverview();
+            if ($('searchModal').classList.contains('open')) renderSearchResults($('searchInput').value);
+        }
+
+        async function patchChat(chatId, fields) {
+            try {
+                await fetch(`${API_BASE}/api/chats/${chatId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fields)
+                });
+            } catch { /* offline */ }
+        }
+
+        // ── ⋯ options menu (pin / project / archive / rename / delete) ───────
+        function positionMenu(btnEl) {
+            const menu = $('chatMenu');
+            const r = btnEl.getBoundingClientRect();
+            menu.style.left = Math.min(r.left, window.innerWidth - 205) + 'px';
+            menu.style.top = (r.bottom + 6) + 'px';
+            menu.classList.add('open');
+            // flip upwards if the menu would run off the bottom of the screen
+            requestAnimationFrame(() => {
+                const mh = menu.offsetHeight;
+                if (r.bottom + 6 + mh > window.innerHeight - 8) {
+                    menu.style.top = Math.max(8, r.top - mh - 6) + 'px';
+                }
+            });
+        }
+
+        function openChatMenu(btnEl, chat) {
+            chatMenuTarget = chat;
+            $('chatMenu').innerHTML = `
+                <button data-act="pin">${chat.pinned ? 'Unpin' : 'Pin chat'}</button>
+                <button data-act="project">${chat.project ? 'Change project' : 'Add to project'}</button>
+                ${chat.project ? '<button data-act="unproject">Remove from project</button>' : ''}
+                <button data-act="archive">${chat.archived ? 'Unarchive' : 'Archive'}</button>
+                <button data-act="rename">Rename</button>
+                <div class="menu-sep"></div>
+                <button data-act="delete" class="danger">Delete</button>`;
+            positionMenu(btnEl);
+        }
+
+        function openProjectMenu(btnEl) {
+            chatMenuTarget = { __project: currentProjectView };
+            $('chatMenu').innerHTML = `
+                <button data-act="renameproj">Rename project</button>
+                <div class="menu-sep"></div>
+                <button data-act="deleteproj" class="danger">Delete project</button>`;
+            positionMenu(btnEl);
+        }
+
+        function hideChatMenu() {
+            $('chatMenu').classList.remove('open');
+            chatMenuTarget = null;
+        }
+
+        async function onChatMenuAction(e) {
+            const act = e.target.dataset.act;
+            if (!act || !chatMenuTarget) return;
+            e.stopPropagation();
+
+            if (chatMenuTarget.__project) {
+                const name = chatMenuTarget.__project;
+                hideChatMenu();
+                if (act === 'renameproj') showProjectRenameModal(name);
+                else if (act === 'deleteproj') showDeleteProjectModal(name);
                 return;
             }
-            el.innerHTML = chats.map(c => {
-                const isActive = c.id === currentChatId;
+
+            const chat = chatMenuTarget;
+            hideChatMenu();
+
+            if (act === 'pin')            { await patchChat(chat.id, { pinned: !chat.pinned }); await loadChatList(); }
+            else if (act === 'archive')   { await patchChat(chat.id, { archived: !chat.archived }); await loadChatList(); }
+            else if (act === 'unproject') { await patchChat(chat.id, { project: null }); await loadChatList(); }
+            else if (act === 'project')   { showProjectModal(chat); }
+            else if (act === 'rename')    { startRename(chat.id); }
+            else if (act === 'delete')    { showDeleteModal(chat.id, chat.name); }
+        }
+
+        // ── project modal — assign a chat, or rename a whole project ─────────
+        // The existing-projects dropdown is rebuilt from the live chat list on
+        // every open, so renames and deletions are always reflected.
+        function populateProjectSelect(selected) {
+            const sel = $('projectSelect');
+            const names = projectNames();
+            sel.innerHTML =
+                '<option value="">No project</option>' +
+                names.map(n => `<option value="${esc(n)}"${n === selected ? ' selected' : ''}>${esc(n)}</option>`).join('') +
+                '<option value="__new__">＋ New project…</option>';
+            if (!selected && !names.length) sel.value = '__new__';
+        }
+
+        function syncProjectInputVisibility() {
+            const isNew = $('projectSelect').value === '__new__';
+            $('projectInput').style.display = isNew ? 'block' : 'none';
+            if (isNew) setTimeout(() => $('projectInput').focus(), 40);
+        }
+
+        function showProjectModal(chat) {
+            projectTarget = chat;
+            projectModalMode = 'assign';
+            $('projectModalTitle').textContent = chat.project ? 'Change project' : 'Add to project';
+            $('projectModalHint').textContent = 'Pick an existing project or create a new one. Chats in the same project are grouped together.';
+            $('projectSelect').style.display = 'block';
+            populateProjectSelect(chat.project || '');
+            $('projectInput').value = '';
+            syncProjectInputVisibility();
+            $('projectModal').classList.add('open');
+        }
+
+        function showProjectRenameModal(name) {
+            projectModalMode = 'renameproj';
+            projectRenameOld = name;
+            $('projectModalTitle').textContent = 'Rename project';
+            $('projectModalHint').textContent = 'The new name applies to every chat in this project.';
+            $('projectSelect').style.display = 'none';
+            $('projectInput').style.display = 'block';
+            $('projectInput').value = name;
+            $('projectModal').classList.add('open');
+            setTimeout(() => { $('projectInput').focus(); $('projectInput').select(); }, 60);
+        }
+
+        function closeProjectModal() {
+            $('projectModal').classList.remove('open');
+            projectTarget = null;
+            projectRenameOld = null;
+        }
+
+        async function saveProject() {
+            if (projectModalMode === 'renameproj') {
+                const newName = $('projectInput').value.trim();
+                if (!newName || !projectRenameOld) { closeProjectModal(); return; }
+                try {
+                    await fetch(`${API_BASE}/api/projects/${encodeURIComponent(projectRenameOld)}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName })
+                    });
+                } catch { /* offline */ }
+                if (currentProjectView === projectRenameOld) {
+                    currentProjectView = newName;
+                    $('projectViewName').textContent = newName;
+                    $('projectNewChatInput').placeholder = `New chat in ${newName}`;
+                }
+                closeProjectModal();
+                await loadChatList();
+                return;
+            }
+
+            if (!projectTarget) return;
+            const sel = $('projectSelect').value;
+            const value = sel === '__new__' ? $('projectInput').value.trim() : sel;
+            await patchChat(projectTarget.id, { project: value || null });
+            closeProjectModal();
+            await loadChatList();
+        }
+
+        // ── project page view ─────────────────────────────────────────────────
+        function showProjectView(name) {
+            closeProjectsOverview();
+            currentProjectView = name;
+            $('projectViewName').textContent = name;
+            $('projectNewChatInput').placeholder = `New chat in ${name}`;
+            $('projectNewChatInput').value = '';
+            renderProjectChatList();
+            root.classList.add('project-open');
+            setVizOpen(false);
+        }
+
+        function closeProjectView() {
+            currentProjectView = null;
+            root.classList.remove('project-open');
+        }
+
+        // Closes whichever secondary full-page view (single project or the
+        // projects overview) is currently open. Used whenever the user starts
+        // or opens a chat, so only one view is ever visible at a time.
+        function closeSpecialViews() {
+            closeProjectView();
+            closeProjectsOverview();
+        }
+
+        // ── projects overview — "Projects" nav item ───────────────────────────
+        function showProjectsOverview() {
+            closeProjectView();
+            projectsOverviewOpen = true;
+            renderProjectsOverview();
+            root.classList.add('projects-open');
+            setVizOpen(false);
+        }
+
+        function closeProjectsOverview() {
+            projectsOverviewOpen = false;
+            root.classList.remove('projects-open');
+        }
+
+        function renderProjectsOverview() {
+            const names = projectNames();
+            const el = $('projectsList');
+            if (!names.length) {
+                el.innerHTML = `
+                    <div class="project-empty">
+                        <p class="pe-title">No projects yet</p>
+                        <p class="pe-sub">Open a chat's ⋯ menu and choose "Add to project" to create one</p>
+                    </div>`;
+                return;
+            }
+            el.innerHTML = names.map(n => {
+                const count = chatCache.filter(c => c.project === n).length;
                 return `
-                <div class="chat-item ${isActive ? 'active' : ''}" data-id="${c.id}">
-                    <span class="chat-item-name" title="${c.name}">${c.name}</span>
-                    <div class="chat-item-actions">
-                        <button class="chat-action-btn rename-btn" data-id="${c.id}" title="Rename">✎</button>
-                        <button class="chat-action-btn delete-btn" data-id="${c.id}" data-name="${c.name.replace(/"/g, '&quot;')}" title="Delete">✕</button>
-                    </div>
-                </div>`;
+                <button class="project-card" data-name="${esc(n)}">
+                    <svg class="project-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+                    <span class="project-card-name">${esc(n)}</span>
+                    <span class="project-card-count">${count} chat${count === 1 ? '' : 's'}</span>
+                </button>`;
             }).join('');
+            el.querySelectorAll('.project-card').forEach(btn => {
+                btn.addEventListener('click', () => showProjectView(btn.dataset.name));
+            });
+        }
 
-            root.querySelectorAll('.chat-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('chat-action-btn')) return;
-                    loadChatFromDB(item.dataset.id);
+        // ── search chats — "Search chats" nav item ────────────────────────────
+        function openSearchModal() {
+            $('searchInput').value = '';
+            renderSearchResults('');
+            $('searchModal').classList.add('open');
+            setTimeout(() => $('searchInput').focus(), 60);
+        }
+
+        function closeSearchModal() {
+            $('searchModal').classList.remove('open');
+        }
+
+        function renderSearchResults(query) {
+            const q = query.trim().toLowerCase();
+            const pool = chatCache.filter(c => !c.archived);
+            const results = q ? pool.filter(c => c.name.toLowerCase().includes(q)) : pool;
+            const el = $('searchResults');
+            if (!results.length) {
+                el.innerHTML = `<div class="search-empty">${q ? 'No chats found' : 'No chats yet'}</div>`;
+                return;
+            }
+            el.innerHTML = results.slice(0, 40).map(c => `
+                <button class="search-result" data-id="${c.id}">
+                    <span class="sr-name">${c.pinned ? '📌 ' : ''}${esc(c.name)}</span>
+                    ${c.project ? `<span class="sr-project">${esc(c.project)}</span>` : ''}
+                </button>`).join('');
+            el.querySelectorAll('.search-result').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    loadChatFromDB(btn.dataset.id);
+                    closeSearchModal();
                 });
             });
+        }
 
-            root.querySelectorAll('.rename-btn').forEach(btn => {
+        function renderProjectChatList() {
+            const listEl = $('projectChatList');
+            const chats = chatCache.filter(c => c.project === currentProjectView);
+            if (!chats.length) {
+                listEl.innerHTML = `
+                    <div class="project-empty">
+                        <p class="pe-title">No chats yet</p>
+                        <p class="pe-sub">Chats in ${esc(currentProjectView || '')} will live here</p>
+                    </div>`;
+                return;
+            }
+            listEl.innerHTML = chats.map(c => `
+                <div class="project-chat-row${c.archived ? ' is-archived' : ''}" data-id="${c.id}">
+                    <div class="row-main">
+                        <span class="row-name">${c.pinned ? '📌 ' : ''}${esc(c.name)}</span>
+                        <span class="row-date">${new Date(c.updated_at).toLocaleDateString()}</span>
+                    </div>
+                    <button class="chat-action-btn menu-btn" data-id="${c.id}" title="Options">⋯</button>
+                </div>`).join('');
+
+            listEl.querySelectorAll('.project-chat-row').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    if (e.target.closest('.chat-action-btn')) return;
+                    loadChatFromDB(row.dataset.id);
+                });
+            });
+            listEl.querySelectorAll('.menu-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    startRename(btn.dataset.id);
+                    const chat = chatCache.find(c => c.id === btn.dataset.id);
+                    if (chat) openChatMenu(btn, chat);
                 });
             });
+        }
 
-            root.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showDeleteModal(btn.dataset.id, btn.dataset.name);
-                });
-            });
+        // "New chat in <project>": creates the chat inside the project; if a
+        // message was typed it is sent immediately in the new chat.
+        async function startChatInProject() {
+            if (!currentProjectView) return;
+            const project = currentProjectView;
+            const text = $('projectNewChatInput').value.trim();
+            const id = await createNewChat();
+            await patchChat(id, { project });
+            conversationHistory = [];
+            currentResults = [];
+            $('chatMessages').innerHTML = getEmptyStateHTML();
+            attachEmptyCardListeners();
+            closeProjectView();
+            await loadChatList();
+            if (text) {
+                $('projectNewChatInput').value = '';
+                $('chatInput').value = text;
+                await handleSend();
+            } else {
+                $('chatInput').focus();
+            }
         }
 
         async function createNewChat() {
@@ -213,6 +573,7 @@ export default function Assistant() {
                 if (!resp.ok) return;
                 const chat = await resp.json();
 
+                closeSpecialViews();
                 currentChatId = chatId;
                 localStorage.setItem('ici-active-chat', currentChatId);
                 conversationHistory = [];
@@ -246,6 +607,7 @@ export default function Assistant() {
         }
 
         function startNewChat() {
+            closeSpecialViews();
             currentChatId = null;
             localStorage.removeItem('ici-active-chat');
             conversationHistory = [];
@@ -776,16 +1138,29 @@ ${JSON.stringify(dataContext, null, 2)}`;
         }
 
         function showDeleteModal(chatId, chatName) {
+            _deleteMode = 'chat';
             _pendingDeleteId = chatId;
+            $('deleteModalTitle').textContent = 'Delete chat?';
             $('deleteModalChatName').innerHTML = chatName
-                ? `This will permanently delete <strong>${chatName}</strong>.`
+                ? `This will permanently delete <strong>${esc(chatName)}</strong>.`
                 : 'This will permanently delete this chat.';
+            $('deleteModalWarning').textContent = "This chat can't be recovered once deleted.";
+            $('deleteModal').classList.add('open');
+        }
+
+        function showDeleteProjectModal(name) {
+            _deleteMode = 'project';
+            _pendingDeleteId = name;
+            $('deleteModalTitle').textContent = 'Delete project?';
+            $('deleteModalChatName').innerHTML = `This will delete the project <strong>${esc(name)}</strong>.`;
+            $('deleteModalWarning').textContent = 'Chats inside are kept — they just leave the project.';
             $('deleteModal').classList.add('open');
         }
 
         function closeDeleteModal() {
             $('deleteModal').classList.remove('open');
             _pendingDeleteId = null;
+            _deleteMode = 'chat';
         }
 
         // ── Event wiring ──────────────────────────────────────────────────────
@@ -793,7 +1168,11 @@ ${JSON.stringify(dataContext, null, 2)}`;
         const vizHideBtn = $('vizHideBtn');
         const sendBtn = $('sendBtn');
         const chatInput = $('chatInput');
-        const newChatBtn = $('newChatBtn');
+        const newChatNavBtn = $('newChatNavBtn');
+        const searchChatsBtn = $('searchChatsBtn');
+        const projectsNavBtn = $('projectsNavBtn');
+        const searchModal = $('searchModal');
+        const searchInput = $('searchInput');
         const sidebarCollapseBtn = $('sidebarCollapseBtn');
         const iciOpenBtn = $('iciOpenBtn');
         const deleteModal = $('deleteModal');
@@ -801,6 +1180,15 @@ ${JSON.stringify(dataContext, null, 2)}`;
         const deleteConfirmBtn = $('deleteConfirmBtn');
         const examplesBtn = $('examplesBtn');
         const examplesMenu = $('examplesMenu');
+        const chatMenuEl = $('chatMenu');
+        const projectModal = $('projectModal');
+        const projectInput = $('projectInput');
+        const projectSelect = $('projectSelect');
+        const projectCancelBtn = $('projectCancelBtn');
+        const projectSaveBtn = $('projectSaveBtn');
+        const projectMenuBtn = $('projectMenuBtn');
+        const projectNewChatInput = $('projectNewChatInput');
+        const projectNewChatSend = $('projectNewChatSend');
 
         const onVizToggle = () => {
             const opening = !vizOpen;
@@ -816,7 +1204,17 @@ ${JSON.stringify(dataContext, null, 2)}`;
         const onDeleteCancel = () => closeDeleteModal();
         const onModalOverlayClick = (e) => { if (e.target === deleteModal) closeDeleteModal(); };
         const onDeleteConfirm = async () => {
-            if (_pendingDeleteId) await deleteChat(_pendingDeleteId);
+            if (_pendingDeleteId) {
+                if (_deleteMode === 'project') {
+                    try {
+                        await fetch(`${API_BASE}/api/projects/${encodeURIComponent(_pendingDeleteId)}`, { method: 'DELETE' });
+                    } catch { /* offline */ }
+                    await loadChatList();
+                    showProjectsOverview();
+                } else {
+                    await deleteChat(_pendingDeleteId);
+                }
+            }
             closeDeleteModal();
         };
         const onExamplesBtnClick = (e) => {
@@ -827,7 +1225,21 @@ ${JSON.stringify(dataContext, null, 2)}`;
         const onDocumentClick = () => {
             examplesMenu.classList.remove('open');
             examplesBtn.classList.remove('open');
+            hideChatMenu();
         };
+        const onProjectInputKeydown = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveProject(); }
+            if (e.key === 'Escape') closeProjectModal();
+        };
+        const onProjectOverlayClick = (e) => { if (e.target === projectModal) closeProjectModal(); };
+        const onProjectSelectChange = () => syncProjectInputVisibility();
+        const onProjectMenuBtnClick = (e) => { e.stopPropagation(); openProjectMenu(projectMenuBtn); };
+        const onProjectNewChatKeydown = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); startChatInProject(); }
+        };
+        const onSearchOverlayClick = (e) => { if (e.target === searchModal) closeSearchModal(); };
+        const onSearchInput = () => renderSearchResults(searchInput.value);
+        const onSearchKeydown = (e) => { if (e.key === 'Escape') closeSearchModal(); };
         const onTextareaInput = () => {
             chatInput.style.height = 'auto';
             chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + 'px';
@@ -838,7 +1250,12 @@ ${JSON.stringify(dataContext, null, 2)}`;
         sendBtn.addEventListener('click', handleSend);
         chatInput.addEventListener('keydown', onKeydownInput);
         chatInput.addEventListener('input', onTextareaInput);
-        newChatBtn.addEventListener('click', startNewChat);
+        newChatNavBtn.addEventListener('click', startNewChat);
+        searchChatsBtn.addEventListener('click', openSearchModal);
+        projectsNavBtn.addEventListener('click', showProjectsOverview);
+        searchModal.addEventListener('click', onSearchOverlayClick);
+        searchInput.addEventListener('input', onSearchInput);
+        searchInput.addEventListener('keydown', onSearchKeydown);
         sidebarCollapseBtn.addEventListener('click', onSidebarCollapseClick);
         iciOpenBtn.addEventListener('click', onIciOpenClick);
         deleteCancelBtn.addEventListener('click', onDeleteCancel);
@@ -846,6 +1263,15 @@ ${JSON.stringify(dataContext, null, 2)}`;
         deleteConfirmBtn.addEventListener('click', onDeleteConfirm);
         examplesBtn.addEventListener('click', onExamplesBtnClick);
         document.addEventListener('click', onDocumentClick);
+        chatMenuEl.addEventListener('click', onChatMenuAction);
+        projectCancelBtn.addEventListener('click', closeProjectModal);
+        projectSaveBtn.addEventListener('click', saveProject);
+        projectInput.addEventListener('keydown', onProjectInputKeydown);
+        projectModal.addEventListener('click', onProjectOverlayClick);
+        projectSelect.addEventListener('change', onProjectSelectChange);
+        projectMenuBtn.addEventListener('click', onProjectMenuBtnClick);
+        projectNewChatInput.addEventListener('keydown', onProjectNewChatKeydown);
+        projectNewChatSend.addEventListener('click', startChatInProject);
 
         attachChipListeners();
         attachExampleListeners();
@@ -867,7 +1293,12 @@ ${JSON.stringify(dataContext, null, 2)}`;
             sendBtn.removeEventListener('click', handleSend);
             chatInput.removeEventListener('keydown', onKeydownInput);
             chatInput.removeEventListener('input', onTextareaInput);
-            newChatBtn.removeEventListener('click', startNewChat);
+            newChatNavBtn.removeEventListener('click', startNewChat);
+            searchChatsBtn.removeEventListener('click', openSearchModal);
+            projectsNavBtn.removeEventListener('click', showProjectsOverview);
+            searchModal.removeEventListener('click', onSearchOverlayClick);
+            searchInput.removeEventListener('input', onSearchInput);
+            searchInput.removeEventListener('keydown', onSearchKeydown);
             sidebarCollapseBtn.removeEventListener('click', onSidebarCollapseClick);
             iciOpenBtn.removeEventListener('click', onIciOpenClick);
             deleteCancelBtn.removeEventListener('click', onDeleteCancel);
@@ -875,6 +1306,15 @@ ${JSON.stringify(dataContext, null, 2)}`;
             deleteConfirmBtn.removeEventListener('click', onDeleteConfirm);
             examplesBtn.removeEventListener('click', onExamplesBtnClick);
             document.removeEventListener('click', onDocumentClick);
+            chatMenuEl.removeEventListener('click', onChatMenuAction);
+            projectCancelBtn.removeEventListener('click', closeProjectModal);
+            projectSaveBtn.removeEventListener('click', saveProject);
+            projectInput.removeEventListener('keydown', onProjectInputKeydown);
+            projectModal.removeEventListener('click', onProjectOverlayClick);
+            projectSelect.removeEventListener('change', onProjectSelectChange);
+            projectMenuBtn.removeEventListener('click', onProjectMenuBtnClick);
+            projectNewChatInput.removeEventListener('keydown', onProjectNewChatKeydown);
+            projectNewChatSend.removeEventListener('click', startChatInProject);
             if (resultsChart) resultsChart.destroy();
         };
     }, []);
@@ -883,12 +1323,25 @@ ${JSON.stringify(dataContext, null, 2)}`;
         <div className="assistant" ref={rootRef}>
             <div className="history-panel" id="historyPanel">
                 <div className="history-header">
-                    <span className="history-title">Chats</span>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <button className="new-chat-btn" id="newChatBtn">+ New</button>
-                        <button className="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Hide sidebar">‹</button>
-                    </div>
+                    <span className="history-title">ICI Assistant</span>
+                    <button className="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Hide sidebar">‹</button>
                 </div>
+
+                <div className="side-nav">
+                    <button className="side-nav-item" id="newChatNavBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                        New chat
+                    </button>
+                    <button className="side-nav-item" id="searchChatsBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                        Search chats
+                    </button>
+                    <button className="side-nav-item" id="projectsNavBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /></svg>
+                        Projects
+                    </button>
+                </div>
+
                 <div className="history-list" id="historyList">
                     <div className="history-empty">No chats yet.<br />Start a conversation!</div>
                 </div>
@@ -932,6 +1385,44 @@ ${JSON.stringify(dataContext, null, 2)}`;
                     <div id="resultsTable" />
                 </div>
 
+                {/* Project page — shown instead of the chat when a project is opened */}
+                <div className="project-view" id="projectView">
+                    <div className="project-view-inner">
+                        <div className="project-head">
+                            <div className="project-head-left">
+                                <svg className="project-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                                </svg>
+                                <h2 id="projectViewName" />
+                            </div>
+                            <button className="project-menu-btn" id="projectMenuBtn" title="Project options">⋯</button>
+                        </div>
+
+                        <div className="project-newchat">
+                            <span className="project-newchat-plus">+</span>
+                            <input id="projectNewChatInput" placeholder="New chat in project" />
+                            <button className="pill-send-btn" id="projectNewChatSend" title="Start chat">↑</button>
+                        </div>
+
+                        <div className="project-tabs">
+                            <span className="project-tab active">Chats</span>
+                        </div>
+
+                        <div className="project-chatlist" id="projectChatList" />
+                    </div>
+                </div>
+
+                {/* Projects overview — shown when the "Projects" nav item is clicked */}
+                <div className="projects-view" id="projectsView">
+                    <div className="projects-view-inner">
+                        <div className="projects-head">
+                            <h2>Projects</h2>
+                            <p>Chats organised into a project live on their own page — click one to open it.</p>
+                        </div>
+                        <div className="projects-grid" id="projectsList" />
+                    </div>
+                </div>
+
                 <div className="container">
                     <div className="main-content">
                         <div className="chat-section">
@@ -963,15 +1454,45 @@ ${JSON.stringify(dataContext, null, 2)}`;
 
             <div className="modal-overlay" id="deleteModal">
                 <div className="modal-card">
-                    <p className="modal-title">Delete chat?</p>
+                    <p className="modal-title" id="deleteModalTitle">Delete chat?</p>
                     <div className="modal-body">
                         <span id="deleteModalChatName" />
-                        <p className="modal-warning">This chat can't be recovered once deleted.</p>
+                        <p className="modal-warning" id="deleteModalWarning">This chat can't be recovered once deleted.</p>
                     </div>
                     <div className="modal-actions">
                         <button className="modal-cancel-btn" id="deleteCancelBtn">Cancel</button>
                         <button className="modal-delete-btn" id="deleteConfirmBtn">Delete</button>
                     </div>
+                </div>
+            </div>
+
+            {/* Floating ⋯ options menu for chat items and projects */}
+            <div className="chat-menu" id="chatMenu" />
+
+            {/* Add-to-project / rename-project modal */}
+            <div className="modal-overlay" id="projectModal">
+                <div className="modal-card">
+                    <p className="modal-title" id="projectModalTitle">Add to project</p>
+                    <div className="modal-body">
+                        <select id="projectSelect" className="project-select" />
+                        <input id="projectInput" className="project-input" placeholder="New project name — e.g. Sanctuary study" />
+                        <p className="modal-warning" id="projectModalHint">Pick an existing project or create a new one.</p>
+                    </div>
+                    <div className="modal-actions">
+                        <button className="modal-cancel-btn" id="projectCancelBtn">Cancel</button>
+                        <button className="modal-save-btn" id="projectSaveBtn">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Search chats modal */}
+            <div className="modal-overlay search-overlay" id="searchModal">
+                <div className="search-modal-card">
+                    <div className="search-input-row">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                        <input id="searchInput" placeholder="Search chats..." autoComplete="off" />
+                    </div>
+                    <div className="search-results" id="searchResults" />
                 </div>
             </div>
         </div>
