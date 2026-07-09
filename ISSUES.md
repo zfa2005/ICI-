@@ -26,6 +26,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-004** | No memory of filters across conversation turns | AI Assistant | 🟠 High | Open |
 | **ISSUE-005** | Law-type keyword coverage is incomplete (3 of 9 types) | AI Assistant | 🟡 Medium | Open |
 | **ISSUE-006** | State field has data-quality bugs (`'null'`, `D.C.`/`DC`, non-US entries) | Data Pipeline | 🟡 Medium | Open |
+| **ISSUE-007** | App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace | Data Pipeline / AI Assistant | 🟠 High | Open |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
 
@@ -42,7 +43,20 @@ questions using real data instead of guessing.
 #### What we actually have today
 
 There is **no RAG, no vector search, no semantic search, no embeddings, no
-reranker** anywhere in this codebase. What exists instead:
+reranker** anywhere in this codebase.
+
+> **No sentence transformer, no vector embedding model of any kind is
+> running in this pipeline — not client-side, not server-side, not in the
+> data-prep scripts.** Nothing in `server.js`, `api/chat.js`,
+> `frontend/src/pages/Assistant.jsx`, or `scripts/convert_to_json.py` ever
+> converts a law's `description`/`notes` text (or a user's query) into an
+> embedding vector. No `sentence-transformers`, no OpenAI/Voyage/Cohere
+> embeddings API, no FAISS/Chroma/`sqlite-vss`/pgvector index exists
+> anywhere in this repo or its dependencies (`package.json` only lists
+> `better-sqlite3` server-side and `chart.js`/`react`/`react-router-dom`
+> client-side — nothing ML-related). Every match the assistant makes today
+> is plain-text `.includes()`/regex substring matching, with zero notion of
+> semantic similarity. What exists instead:
 
 1. On page load, the entire 13,524-law dataset (`ici_data.json`, ~1.7MB) is
    fetched whole into the browser
@@ -217,9 +231,9 @@ free text where there's no clean column to filter on.
 |---|---|---|
 | 1 | Clean the data with pandas; compute real tier-weighted ICI scores; fix state field (**ISSUE-006**) | none — do this first |
 | 2 | Replace client-side regex with server-side tool-calling for structured filters; fixes **ISSUE-003**, **ISSUE-004**, **ISSUE-005** | Phase 1 (needs clean data) |
-| 3 | Embed `description`/`notes`, add vector index, wire in as a second tool | Phase 1 |
+| 3 | Embed `description`/`notes` — and the full-text corpora from the ICI Claude Workspace (bill texts, 287(g) MOA texts; see the Asset Inventory section) — into a vector index, wire in as a second tool | Phase 1 |
 | 4 | Add reranker step over the merged candidate set from Phase 2 + 3 | Phase 2, 3 |
-| 5 | Add a small eval set (sample questions + expected records) and log retrieval quality over time, so future changes can be measured, not just vibes-checked | Phase 2+ |
+| 5 | Add a small eval set (sample questions + expected records) and log retrieval quality over time, so future changes can be measured, not just vibes-checked — `audit_sample.csv` in the workspace is the natural seed | Phase 2+ |
 
 ---
 
@@ -265,6 +279,135 @@ pass (Phase 1) — collapse `D.C.`/`DC`, drop/handle literal `'null'`,
 decide explicitly what to do with territories/foreign entries rather than
 silently mis-handling them.
 
+### ISSUE-007: App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace
+**Severity: High.** The app's `ici_data.json` carries only one-line
+descriptions per law, but the research workspace (see inventory below) holds
+full bill texts, full 287(g) MOA texts, the complete news-article corpus,
+the full type/subtype taxonomy, and audited quality metadata — none of which
+the assistant can currently see. Retrieval quality is capped by the poverty
+of the indexed text, not by the retrieval algorithm. Fix: build the Python
+RAG pipeline over the workspace assets (see next section).
+
+---
+
+## ICI Claude Workspace — Asset Inventory for the Accurate Pipeline
+
+> Local path: `C:\ICI Claude Workspace` (~1.9 GB). This is the full research
+> workspace behind the dataset — raw sources, parsed intermediates, the
+> merged master, methodology docs, and full text for two of the three source
+> types. Everything the Python RAG pipeline needs lives here. Inventoried
+> 2026-07-09; linkage keys below were verified programmatically, not assumed.
+
+### What's in it
+
+```
+C:\ICI Claude Workspace\
+├── data\
+│   ├── ici_master\
+│   │   ├── ici_master.csv           13,533 rows — THE canonical merged database
+│   │   ├── ici_master_state.csv      3,460 rows — state merge (manual + NCSL pipeline)
+│   │   ├── ici_master_local.csv      9,099 rows — local merge (manual + news pipeline)
+│   │   ├── ici_master_287g.csv       3,498 rows — 287(g) merge (manual + PDF pipeline)
+│   │   ├── ICI_Master_README.md.docx  full schema + merge/dedup methodology
+│   │   ├── data_audit_methodology.md  stratified human-audit design (C1–C6 checks)
+│   │   └── audit_sample.csv           531-row audit sample (checks not yet filled)
+│   ├── state_laws_parsed.csv         2,658 rows — automated NCSL classifications
+│   ├── local_laws_parsed.csv        17,199 rows — pre-dedup local classifications
+│   ├── local_laws_deduped.csv        6,747 rows — deduped local classifications
+│   ├── local_news_raw.csv           ~68 MB — raw news corpus incl. FULL ARTICLE TEXT
+│   ├── 287g_fulltext.csv             1,455 rows — FULL TEXT of every parsed 287(g) MOA
+│   ├── 287g_complete.csv             1,604 rows — agency/model/dates per agreement
+│   └── 287g_parsed_v2[_unique].csv   1,455/1,361 rows — classified 287(g) records
+├── 287g_pdfs\                          527 original ICE MOA PDFs
+├── state_law_texts\                    641 .txt files — FULL BILL TEXT, filename = NCSL bill_id
+└── reports\figures\                    1 analysis figure (event study)
+```
+
+### The master schema (from the workspace README)
+
+`ici_master.csv` is the authoritative file — one row per unique provision,
+26 columns. The fields that matter most for the pipeline:
+
+- **`source_type`** — `287g` / `state` / `local`
+- **`source`** — `manual` / `automated` / `both` → a built-in **confidence
+  signal** (manual is the presumed-correct baseline; `both` means two
+  independent pipelines agreed)
+- **`type` + `subtype`** — the full SubFederal Laws taxonomy. **116 distinct
+  (type, subtype) pairs** exist in the data (e.g., P/1 = 287(g) agreement,
+  P/60 = sanctuary policy, W/31, B/11 …), far richer than the 9 type letters
+  the app exposes today
+- **`score`** — the signed ICI tier weight, already computed per row
+  (±1…±4; verified distribution: 4,500 rows at −4, 5,705 at +4, etc.).
+  Points follow the taxonomy: P=4, D/E/H/T=3, B=2, L/W/V=1, with subtype
+  overrides
+- **`provision_description`** — a *richer* Claude-generated description
+  (automated rows) than the one-liner the app currently ships
+- **`bill_id`**, **`source_url`**, **`article_urls`**, **`fips_county`**,
+  **`n_articles`**, **`model`** (287(g) model type), **`parties`** (agency)
+
+Note: the master extends **1974–2026** and shows the 2017 ("Trump 1",
+1,418 provisions) and 2025 ("Trump 2", 4,858 provisions) spikes — the app's
+marketing copy says 2005–2020, which undersells the corpus.
+
+### Verified linkage keys (what joins to what)
+
+| Asset | Joins to master via | Verified coverage |
+|---|---|---|
+| `state_law_texts/*.txt` | filename = NCSL `bill_id` (e.g. `AK2015000S147.txt`); each file also self-describes with STATE/YEAR/DESCRIPTION/SOURCE_URL header lines | 263 of 641 filenames match a master `bill_id` directly; the rest are SKIP-classified bills or manual-ID rows — join those via the file's header metadata |
+| `287g_fulltext.csv` | `source_url` | **100%** — all 1,011 master 287(g) rows with a URL have full text here |
+| `local_news_raw.csv` | `resolved_url`/`url` ↔ master `article_url(s)` | full article text for the local-news pipeline's evidence base |
+| `audit_sample.csv` | `audit_id` + master keys | 531 rows ready for the C1–C6 human audit (not yet filled in) |
+
+### How each asset slots into the RAG pipeline
+
+1. **Structured store (pandas/SQLite/DuckDB)** ← `ici_master.csv` directly.
+   It already has everything Phase 1 wanted: per-row signed `score`,
+   `source` confidence, full taxonomy, FIPS codes. The app's
+   `convert_to_json.py` already reads this exact file — but throws away
+   `provision_description`, `score` semantics, and the subtype taxonomy on
+   the way to `ici_data.json`.
+2. **Embedding corpus (sentence-transformers → ChromaDB)** ← three text
+   tiers, embedded per-chunk with metadata pointing back to the master row:
+   - *Tier A (always):* `description` + `provision_description` for all
+     13,533 rows — short, clean, one embedding each.
+   - *Tier B (full legal text):* 641 state bill texts + 1,455 MOA full
+     texts, chunked (~500–1,000 tokens) with `bill_id`/`source_url` metadata
+     so a hit resolves to the master row. This is what lets a query match
+     the *actual statutory language*, not just a headline.
+   - *Tier C (optional, evidence):* full news articles from
+     `local_news_raw.csv` for "what did coverage say about X" queries.
+3. **Reranker** — cross-encoder over the candidate set from (1)+(2); the
+   candidate's master-row metadata (score, source confidence, type/subtype)
+   can be blended into final ranking.
+4. **Answer grounding** — every retrieved chunk carries `source_url` /
+   `article_url` / PDF path, so the assistant can cite the actual MOA PDF or
+   bill text it's quoting. The 527 PDFs are on disk for deep-linking.
+5. **Eval set (Phase 5)** ← `audit_sample.csv` + `data_audit_methodology.md`
+   give a ready-made stratified sample and per-field check protocol (C1–C6).
+   Once the human audit fills it in, it doubles as retrieval ground truth:
+   "given this description, does the pipeline retrieve the right row?"
+6. **Taxonomy prompt/tool docs** ← the README's type/subtype/score tables
+   (and `Categories of SubFederal Laws.md`, referenced but **not present in
+   the workspace copy — obtain it**) become the tool-argument enums and the
+   system-prompt glossary, replacing the app's 9-letter `typeMap`.
+
+### Gaps found while inventorying
+
+- `Categories of SubFederal Laws.md` (the full taxonomy doc) is referenced
+  by the audit methodology but missing from this workspace copy — needed for
+  the definitive subtype table (116 pairs exist in-data; the doc defines them).
+- The merge/pipeline scripts the README references (`scripts/merge_*.py`,
+  `agents/parse_*.py`, `scripts/build_ici_master.py`) are not in this copy —
+  we can rebuild aggregations ourselves in pandas, but the originals would
+  save re-derivation.
+- `audit_sample.csv` exists but no checks are filled in yet — the error-rate
+  numbers for the paper (and our eval ground truth) don't exist until the
+  human audit runs.
+- ~378 of the 641 state-law text files don't key directly to a master
+  `bill_id` (SKIP rows / manual-format IDs) — the pipeline's ingest step
+  must join them via the in-file header metadata instead, or accept them as
+  index-only documents.
+
 ---
 
 ## Changelog
@@ -273,3 +416,9 @@ silently mis-handling them.
   (ISSUE-001 through ISSUE-006) after reviewing `server.js`,
   `frontend/src/pages/Assistant.jsx`, `scripts/convert_to_json.py`, and
   `data/ici_data.json`.
+- **2026-07-09 (later)** — Inventoried `C:\ICI Claude Workspace` (~1.9 GB):
+  master database schema, full-text corpora (641 bill texts, 1,455 MOA
+  full-texts, 527 PDFs, 68 MB news corpus), audit methodology, and verified
+  the linkage keys between them. Added ISSUE-007 and the "Asset Inventory
+  for the Accurate Pipeline" section mapping each asset to its role in the
+  planned sentence-transformers + ChromaDB + reranker pipeline.
