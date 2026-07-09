@@ -271,16 +271,6 @@ a { color: inherit; }
 
 .dropdown-item:hover { background: var(--surface-2); }
 
-.dropdown-item-icon {
-    width: 28px; height: 28px;
-    border-radius: 7px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    flex-shrink: 0;
-}
-
 .dropdown-item-text .title {
     font-size: 0.81rem;
     font-weight: 600;

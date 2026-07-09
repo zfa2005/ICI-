@@ -109,22 +109,6 @@
 
 .contact-perks strong { color: var(--text); }
 
-.perk-icon {
-    width: 30px; height: 30px;
-    border-radius: 8px;
-    background: var(--accent-glow);
-    border: 1px solid rgba(99,102,241,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent-light);
-    flex-shrink: 0;
-    margin-top: 1px;
-    font-size: 0.56rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-}
-
 .contact-trust {
     display: inline-flex;
     align-items: center;

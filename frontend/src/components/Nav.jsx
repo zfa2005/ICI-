@@ -59,14 +59,12 @@ export default function Nav() {
                         </button>
                         <div className="nav-dropdown-menu">
                             <a href={withBase('research.html')} className="dropdown-item">
-                                <div className="dropdown-item-icon" style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8' }}>PUB</div>
                                 <div className="dropdown-item-text">
                                     <div className="title">Research Publication</div>
                                     <div className="sub">Full academic paper &amp; methodology</div>
                                 </div>
                             </a>
                             <Link to="/assistant" className="dropdown-item">
-                                <div className="dropdown-item-icon" style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>AI</div>
                                 <div className="dropdown-item-text">
                                     <div className="title">AI Research Assistant</div>
                                     <div className="sub">Natural-language database queries</div>

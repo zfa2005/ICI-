@@ -692,7 +692,6 @@ export default function DataExplorer() {
                     <div className="sidebar">
 
                         <Link to="/assistant" className="ai-card">
-                            <div className="ai-card-icon">AI</div>
                             <div className="ai-card-text">
                                 <div className="ai-card-title">AI Research Assistant</div>
                                 <div className="ai-card-sub">Deep analysis powered by Claude</div>

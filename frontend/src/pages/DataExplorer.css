@@ -923,15 +923,6 @@
     border-color: rgba(99,102,241,0.4);
 }
 
-.explorer .ai-card-icon {
-    width: 34px; height: 34px;
-    background: linear-gradient(135deg, var(--accent-light), var(--accent));
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 0.75rem; font-weight: 700;
-    flex-shrink: 0;
-}
-
 .explorer .ai-card-text .ai-card-title {
     font-size: 0.8rem;
     font-weight: 600;

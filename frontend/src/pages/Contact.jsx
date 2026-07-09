@@ -70,19 +70,15 @@ export default function Contact() {
 
                         <ul className="contact-perks">
                             <li>
-                                <span className="perk-icon">GOV</span>
                                 <span><strong>Government &amp; policy agencies</strong> — request a briefing on jurisdiction-level ICI scores</span>
                             </li>
                             <li>
-                                <span className="perk-icon">LAW</span>
                                 <span><strong>Law firms</strong> — enquire about bulk data access or custom jurisdiction reports</span>
                             </li>
                             <li>
-                                <span className="perk-icon">RES</span>
                                 <span><strong>Researchers &amp; universities</strong> — collaboration, citation, or dataset requests</span>
                             </li>
                             <li>
-                                <span className="perk-icon">GEN</span>
                                 <span><strong>General enquiries</strong> — questions about the methodology, data coverage, or the ICI platform</span>
                             </li>
                         </ul>

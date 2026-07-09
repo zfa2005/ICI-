@@ -87,17 +87,14 @@ export default function Home() {
 
                     <div className="why-grid">
                         <Reveal className="why-card">
-                            <div className="why-icon" style={{ background: 'rgba(99,102,241,0.12)', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>01</div>
                             <h3>A Fractured Landscape</h3>
                             <p>Immigration regulation happens at the federal level, but thousands of state, county, and city governments each pass their own laws affecting immigrants daily — creating a patchwork impossible to track manually.</p>
                         </Reveal>
                         <Reveal className="why-card" delay="0.1s">
-                            <div className="why-icon" style={{ background: 'rgba(16,185,129,0.12)', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: '#10B981' }}>02</div>
                             <h3>Quantitative Rigor</h3>
                             <p>Every law in the database is assigned a tier score (±1 to ±4) based on the depth of its impact on immigrant life. Scores are aggregated into a single ICI score per jurisdiction — comparable across states and years.</p>
                         </Reveal>
                         <Reveal className="why-card" delay="0.2s">
-                            <div className="why-icon" style={{ background: 'rgba(245,158,11,0.12)', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: '#F59E0B' }}>03</div>
                             <h3>The Trump Effect — Documented</h3>
                             <p>The ICI reveals a 10x spike in legislative activity starting in 2017 as state and local governments raced to pass sanctuary protections in response to federal immigration enforcement escalation.</p>
                         </Reveal>
@@ -116,32 +113,26 @@ export default function Home() {
 
                     <div className="features-grid">
                         <Reveal className="feature-card">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>AI</div>
                             <h3>AI Research Assistant</h3>
                             <p>Ask any question in plain English. Claude Sonnet answers using live database statistics — not approximations from training data — and maintains context across a full conversation.</p>
                         </Reveal>
                         <Reveal className="feature-card" delay="0.08s">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>VIZ</div>
                             <h3>Interactive Visualisations</h3>
                             <p>Time-series line charts, state-comparison bars, law-type breakdowns, and Trump-Effect analyses — all rendered live in the browser using Chart.js with a dark research aesthetic.</p>
                         </Reveal>
                         <Reveal className="feature-card" delay="0.24s">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>CSV</div>
                             <h3>CSV Data Export</h3>
                             <p>Download any filtered result set as a standards-compliant CSV for use in Stata, R, Python, or Excel. Export the full database or just the 47 sanctuary laws passed in Illinois — your choice.</p>
                         </Reveal>
                         <Reveal className="feature-card" delay="0.32s">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>LOG</div>
                             <h3>Persistent Chat History</h3>
                             <p>Every AI conversation is saved to a local SQLite database. Return tomorrow, pick up where you left off. Rename, delete, or search past sessions from the sidebar.</p>
                         </Reveal>
                         <Reveal className="feature-card" delay="0.4s">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--accent-light)' }}>ICI</div>
                             <h3>ICI Tier Scoring</h3>
                             <p>Each law is scored ±1 to ±4 based on how broadly it affects immigrant life. Scores are explained in plain language, traceable back to the original academic methodology paper.</p>
                         </Reveal>
                         <Reveal className="feature-card" delay="0.48s">
-                            <div className="feature-icon" style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--positive)' }}>OA</div>
                             <h3>Open Access Database</h3>
                             <p>The full 13,524-law database is freely accessible with no paywall or sign-in. Built on open academic research and designed to support government, legal, and scholarly work at any scale.</p>
                         </Reveal>
