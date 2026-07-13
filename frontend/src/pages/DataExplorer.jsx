@@ -24,6 +24,12 @@ export default function DataExplorer() {
         Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
         Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
 
+        // Escape HTML metacharacters before interpolating untrusted text (user
+        // queries, law descriptions) into innerHTML. (ISSUE-009 / ISSUE-011)
+        const esc = (s) => String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
         let DATA = { stateLaws: [], localLaws: [], laws287g: [], typeMap: {}, metadata: {} };
         let currentResults = [];
         let resultsChart = null;
@@ -76,9 +82,11 @@ export default function DataExplorer() {
             const div = document.createElement('div');
             div.className = `message ${type}`;
             if (type === 'bot') {
+                // Bot content is app-generated HTML (processQuery templates) — trusted.
                 div.innerHTML = `<div class="message-label">ICI Database</div><div class="message-content">${content}</div>`;
             } else {
-                div.innerHTML = `<div class="message-label" style="text-align:right;">Query</div><div class="message-content">${content}</div>`;
+                // User query is raw and untrusted — escape it before rendering.
+                div.innerHTML = `<div class="message-label" style="text-align:right;">Query</div><div class="message-content">${esc(content)}</div>`;
             }
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -448,15 +456,15 @@ export default function DataExplorer() {
                     : 'Statewide';
 
                 const typeName = DATA.typeMap[law.type] || law.type || '—';
-                const desc = law.description ? law.description.substring(0, 160) + (law.description.length > 160 ? '…' : '') : '—';
+                const desc = law.description ? esc(law.description.substring(0, 160)) + (law.description.length > 160 ? '…' : '') : '—';
 
                 html += `<tr>
-                    <td class="year-cell">${law.year || '—'}</td>
-                    <td class="state-cell">${law.state || '—'}</td>
-                    <td>${location}</td>
-                    <td class="type-cell" title="${typeName}">${law.type || '—'}</td>
+                    <td class="year-cell">${esc(law.year || '—')}</td>
+                    <td class="state-cell">${esc(law.state || '—')}</td>
+                    <td>${esc(location)}</td>
+                    <td class="type-cell" title="${esc(typeName)}">${esc(law.type || '—')}</td>
                     <td>${badge}</td>
-                    <td class="truncate" title="${law.description || ''}">${desc}</td>
+                    <td class="truncate" title="${esc(law.description || '')}">${desc}</td>
                 </tr>`;
             });
 
@@ -472,15 +480,24 @@ export default function DataExplorer() {
         function exportCSV() {
             if (currentResults.length === 0) return;
 
+            // Neutralize spreadsheet formula injection: a cell beginning with
+            // = + - @ (or a tab/CR) is treated as a formula by Excel/Sheets.
+            // Prefix those with a single quote so they render as literal text. (ISSUE-019)
+            const csvSafe = (v) => {
+                const s = String(v ?? '');
+                const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+                return guarded.replace(/"/g, '""');
+            };
+
             const headers = ['Year', 'State', 'County', 'City', 'Source', 'Type', 'PosNeg', 'Tier', 'Description'];
             const rows = currentResults.map(law => [
                 law.year || '', law.state || '', law.county || '', law.city || '',
                 law.source || '', law.type || '', law.posNeg, law.tier || '',
-                (law.description || '').replace(/"/g, '""')
+                law.description || ''
             ]);
 
             let csv = headers.join(',') + '\n';
-            rows.forEach(row => { csv += row.map(c => `"${c}"`).join(',') + '\n'; });
+            rows.forEach(row => { csv += row.map(c => `"${csvSafe(c)}"`).join(',') + '\n'; });
 
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);

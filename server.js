@@ -248,11 +248,58 @@ async function generateChatTitle(apiKey, userMessage) {
 // ─────────────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CORS allowlist — only these origins may call the API. Set ALLOWED_ORIGINS in
+// .env (comma-separated) for the deployed front-end; localhost dev origins are
+// always allowed. A wildcard '*' would let any website drive our paid Claude
+// endpoint, so we reflect the request's Origin only when it's on the list. (ISSUE-010)
+// ─────────────────────────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  ...(process.env.ALLOWED_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean),
+]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rate limiter — fixed window per client IP, applied to the paid /api/chat
+// route. Without this, an attacker can loop the endpoint and run up an
+// unbounded Anthropic bill. In-memory is fine for a single-process server;
+// a multi-instance deploy would move this to a shared store. (ISSUE-010)
+// ─────────────────────────────────────────────────────────────────────────────
+const RATE_LIMIT_MAX    = Number(process.env.RATE_LIMIT_MAX)    || 20;   // requests
+const RATE_LIMIT_WINDOW = Number(process.env.RATE_LIMIT_WINDOW) || 60000; // per ms
+const rateHits = new Map(); // ip -> { count, resetAt }
+
+function rateLimited(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = rateHits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+// Opportunistically evict expired buckets so the Map can't grow unbounded.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of rateHits) if (now > e.resetAt) rateHits.delete(ip);
+}, RATE_LIMIT_WINDOW).unref();
+
 http.createServer(async (req, res) => {
 
-  // Allow the browser's fetch() to reach this server from any origin.
-  // In production you would restrict this to your actual domain.
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Reflect the request Origin only if it's on the allowlist (see above).
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
 
@@ -353,9 +400,19 @@ http.createServer(async (req, res) => {
   //   DevTools. Keeping the call server-side means the key is never sent
   //   to the client at all.
   if (pathname === '/api/chat' && req.method === 'POST') {
+    // Throttle the paid endpoint before doing any work. (ISSUE-010)
+    if (rateLimited(req)) {
+      return json(res, 429, { error: 'Too many requests — please slow down and try again shortly.' });
+    }
+
     const body    = await parseBody(req);
     const { messages, chatId, newUserContent } = body;
     const apiKey  = process.env.ANTHROPIC_API_KEY;
+
+    // Validate the request shape before forwarding anything upstream. (ISSUE-010)
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return json(res, 400, { error: 'messages must be a non-empty array' });
+    }
 
     if (!apiKey || apiKey === 'your-key-here') {
       return json(res, 500, { error: 'ANTHROPIC_API_KEY not set in .env' });

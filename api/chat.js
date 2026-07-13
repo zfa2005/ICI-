@@ -1,7 +1,40 @@
+// Only these origins may call the endpoint. Set ALLOWED_ORIGINS (comma-separated)
+// in the platform env for the deployed front-end; localhost dev is always allowed.
+// A wildcard would let any site drive our paid Claude endpoint. (ISSUE-010)
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://localhost:3000',
+  ...(process.env.ALLOWED_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean),
+]);
+
+// Fixed-window per-IP rate limit. In-memory per warm instance — a best-effort
+// guard against runaway credit spend; move to a shared KV for strong limits. (ISSUE-010)
+const RATE_LIMIT_MAX    = Number(process.env.RATE_LIMIT_MAX)    || 20;
+const RATE_LIMIT_WINDOW = Number(process.env.RATE_LIMIT_WINDOW) || 60000;
+const rateHits = new Map();
+
+function rateLimited(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  const now = Date.now();
+  const entry = rateHits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  // Reflect Origin only when allowlisted. Note: no Allow-Credentials — pairing
+  // it with a specific origin isn't needed here and is invalid with '*'. (ISSUE-010)
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -11,6 +44,10 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (rateLimited(req)) {
+    return res.status(429).json({ error: 'Too many requests — please slow down and try again shortly.' });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
