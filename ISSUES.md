@@ -28,26 +28,26 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-006** | State field has data-quality bugs (`'null'`, `D.C.`/`DC`, non-US entries) | Data Pipeline | 🟡 Medium | Open |
 | **ISSUE-007** | App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace | Data Pipeline / AI Assistant | 🟠 High | Open |
 | **ISSUE-008** | AI Assistant is dead in production — backend URL is still a placeholder | Frontend / Deploy | 🔴 Critical | Open |
-| **ISSUE-009** | Stored XSS via chat messages (raw user input → `innerHTML`, persisted & replayed) | Security | 🔴 Critical | Open |
-| **ISSUE-010** | Chat proxy has wildcard CORS and no rate limiting → API-credit theft | Security / Backend | 🟠 High | Open |
-| **ISSUE-011** | Unsanitized AI/markdown output + data-driven XSS in result tables | Security | 🟠 High | Open |
-| **ISSUE-012** | Contact form silently discards every submission | Frontend | 🟠 High | Open |
+| **ISSUE-009** | Stored XSS via chat messages (raw user input → `innerHTML`, persisted & replayed) | Security | 🔴 Critical | 🟢 Fixed |
+| **ISSUE-010** | Chat proxy has wildcard CORS and no rate limiting → API-credit theft | Security / Backend | 🟠 High | 🟢 Fixed |
+| **ISSUE-011** | Unsanitized AI/markdown output + data-driven XSS in result tables | Security | 🟠 High | 🟢 Fixed |
+| **ISSUE-012** | Contact form silently discards every submission | Frontend | 🟠 High | Open (owner) |
 | **ISSUE-013** | Data pipeline not reproducible — source CSV absent, hardcoded absolute paths | Data Pipeline | 🟠 High | Open |
-| **ISSUE-014** | System prompt does not constrain hallucination (no "use only provided data") | AI Assistant | 🟠 High | Open |
+| **ISSUE-014** | System prompt does not constrain hallucination (no "use only provided data") | AI Assistant | 🟠 High | 🟢 Fixed |
 | **ISSUE-015** | The entire app exists twice — legacy `src/pages/*.html` vs the React frontend | Architecture | 🟡 Medium | Open |
 | **ISSUE-016** | God files with imperative DOM manipulation inside React | Architecture | 🟡 Medium | Open |
 | **ISSUE-017** | `typeMap` & state maps duplicated across 5+ places (already drifting) | Architecture / Data | 🟡 Medium | Open |
 | **ISSUE-018** | Copy-pasted logic across the two chat interfaces (~60%+ shared) | Architecture | 🟡 Medium | Open |
-| **ISSUE-019** | CSV export formula injection (no `= + - @` neutralization) | Security | 🟡 Medium | Open |
+| **ISSUE-019** | CSV export formula injection (no `= + - @` neutralization) | Security | 🟡 Medium | 🟢 Fixed |
 | **ISSUE-020** | 6.24 MB data file, byte-duplicated, fully parsed on every page load | Performance | 🟡 Medium | Open |
 | **ISSUE-021** | Widespread null/missing fields only partly handled (164 null years, etc.) | Data / Frontend | 🟡 Medium | Open |
 | **ISSUE-022** | No loading / error / empty states; silent `catch {}` swallowing failures | Frontend / UX | 🟡 Medium | Open |
-| **ISSUE-023** | Hero stats hardcoded; "2005–2026 / 21 yrs" coverage label is wrong | Frontend / Accuracy | 🟡 Medium | Open |
+| **ISSUE-023** | Hero stats hardcoded; "2005–2026 / 21 yrs" coverage label is wrong | Frontend / Accuracy | 🟡 Medium | 🟢 Verified |
 | **ISSUE-024** | README & CLAUDE.md materially outdated (wrong architecture, sizes, counts) | Docs | 🔵 Low | Open |
 | **ISSUE-025** | No automated tests anywhere | Testing | 🔵 Low | Open |
 | **ISSUE-026** | Data provenance (manual vs automated, source URLs) not surfaced in the UI | Data / Product | 🔵 Low | Open |
 | **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
-| **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | Open |
+| **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | 🟡 Partly fixed |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
 *ISSUE-008+ come from the 2026-07-13 full-repo codebase audit — see the "Codebase Audit" section below. Severity key adds 🔵 Low.*
@@ -486,6 +486,11 @@ helper already exists (`:52-54`) and is correctly used for chat *names* — it
 was simply never applied to message bodies. Same bug in the legacy twin
 (`src/pages/chatbot-ai.html:1585` + `:2088`). **Fix:** `esc()` user content
 before insertion; render bot content only through the sanitized path (ISSUE-011).
+**🟢 Fixed 2026-07-13 (727b73a):** `addMessage` escapes content when
+`type === 'user'` in both React chat components (added an `esc` helper to
+DataExplorer). Verified in a headless browser — an `<img onerror>` payload
+renders as inert escaped text and no handler fires. Legacy HTML still carries
+it, pending ISSUE-015 deletion.
 
 ### ISSUE-010: Chat proxy has wildcard CORS and no rate limiting → credit theft
 **Severity: High.** `server.js:255` sets `Access-Control-Allow-Origin: '*'`
@@ -500,6 +505,13 @@ CORS to the known front-end origin(s); add per-IP rate limiting (a small
 in-memory token bucket suffices for `server.js`; use the platform limiter or a
 KV store on serverless); cap conversation length and `max_tokens`; consider a
 shared secret or Turnstile on the endpoint.
+**🟢 Fixed 2026-07-13 (727b73a):** wildcard CORS replaced with an
+`ALLOWED_ORIGINS` allowlist (localhost always allowed) in both `server.js` and
+`api/chat.js`; added a per-IP fixed-window rate limiter (`RATE_LIMIT_MAX` /
+`RATE_LIMIT_WINDOW`, default 20/min) on `/api/chat`, plus request-body
+validation. `api/chat.js` also dropped the invalid `Allow-Credentials: true` +
+`*` combo. Verified: 429 after the cap; CORS header only for allowlisted
+origins. Still TODO: cap conversation length/`max_tokens`, and a secret/Turnstile.
 
 ### ISSUE-011: Unsanitized AI/markdown output + data-driven XSS in tables
 **Severity: High.** `formatResponse` builds HTML from the model's raw text via
@@ -519,6 +531,12 @@ every data interpolation (`esc(...)`), and route AI markdown through a vetted
 sanitizer — a build system already exists, so add `marked` + `DOMPurify`
 (`DOMPurify.sanitize(marked.parse(text))`) instead of the hand-rolled regex
 formatter. Correlates with the hallucination constraint in ISSUE-014.
+**🟢 Fixed 2026-07-13 (727b73a):** took the no-new-dependency route —
+`formatResponse` now `esc()`s its input as the very first step, so every tag
+in the output is one we generate from a known markdown subset and any literal
+markup (from the model or data) is inert; all law-data fields interpolated into
+result tables are `esc()`'d in both components. (A `marked` + `DOMPurify`
+migration remains a reasonable future hardening if the markdown grows.)
 
 ### ISSUE-012: Contact form silently discards every submission
 **Severity: High.** `handleSubmit` validates the email then just sets
@@ -561,6 +579,10 @@ add explicit grounding constraints ("Answer only from the data context below;
 if it's not there, say you don't have it; never estimate or invent numbers;
 every figure must appear in the context"), and echo the active filter to the
 user. This is the near-term mitigation until the RAG rebuild (ISSUE-001) lands.
+**🟢 Fixed 2026-07-13 (727b73a):** the system prompt now leads with explicit
+GROUNDING rules — answer only from the provided data context, say when the data
+doesn't cover something, and never invent bill names, citations, or numbers.
+The stronger structural fix (real retrieval) still tracks under ISSUE-001.
 
 ### ISSUE-015: The entire app exists twice — legacy HTML vs React
 **Severity: Medium.** Two parallel front-ends implement the same five screens:
@@ -617,6 +639,9 @@ opening the exported `ici_export.csv` in Excel/Sheets executes those cells as
 formulas. Descriptions are free text and can begin with such a character.
 **Fix:** prefix any cell starting with `= + - @` with a `'` (or leading space)
 during export.
+**🟢 Fixed 2026-07-13 (727b73a):** `exportCSV` now runs every value through a
+`csvSafe()` helper that prefixes cells starting with `= + - @` (or tab/CR) with
+a `'` before quoting.
 
 ### ISSUE-020: 6.24 MB data file, byte-duplicated, fully parsed per load
 **Severity: Medium.** `data/ici_data.json` is **6.24 MB uncompressed / 0.81 MB
@@ -662,6 +687,16 @@ enacted-year records back to 1974 (the Asset Inventory above makes the same
 point — the master spans 1974–2026 and "2005–2020 undersells the corpus").
 **Fix:** derive counters from `DATA.metadata` at runtime; correct or footnote
 the coverage window.
+**🟢 Verified 2026-07-13 — no code change.** On measuring the year
+distribution: only **35 records (0.3%)** are pre-2005 (scattered outliers:
+1974, 1983-2004), **37.6%** are 2005-2020, and **62.1%** are post-2020 (to
+2026). So "Coverage (2005–2026)" covers **99.7%** of the data and is defensible,
+and the counts (13,524 / 3,491) match the JSON exactly — no visible bug to fix.
+Downgraded from "wrong" to a note: the numbers remain hardcoded (drift risk),
+but adding a 6 MB fetch to the landing page just to derive three integers would
+be a net negative; revisit with a tiny metadata-only file if/when the data
+regenerates. (Note: the README's "2005–2020" claim *is* wrong — it cuts 62% of
+the data — tracked under ISSUE-024.)
 
 ### ISSUE-024: README & CLAUDE.md materially outdated
 **Severity: Low** (high embarrassment risk). `README.md` describes a different
@@ -724,6 +759,12 @@ and an alert on upstream failures.
   in-flight flag (`Assistant.jsx:1086-1108`); low-risk race, tighten during the
   ISSUE-016 refactor.
 
+**🟡 Partly fixed 2026-07-13 (727b73a / 5e38408):** done — `.DS_Store`
+untracked; `react-chartjs-2` removed; unused `import math` removed; root
+`package.json` URLs repointed at `zfa2005/ICI-`. Still open — legacy CDN SRI
+(moot once ISSUE-015 deletes the legacy HTML), `LICENSE` (needs an owner
+decision on license type), and the chat-send race (defer to ISSUE-016).
+
 ---
 
 ## Changelog
@@ -749,3 +790,17 @@ and an alert on upstream failures.
   consistent data, intact encoding, no chart memory leak. Merged in from a
   standalone `codebase_audit.md`, which was then deleted to keep this file the
   single tracker.
+- **2026-07-13 (fix batch 1)** — Started working through the audit findings
+  (ISSUE-012 deferred to its owner pending a form host). Fixed and pushed:
+  ISSUE-009 (stored XSS in chat messages), ISSUE-011 (unsanitized AI output +
+  data-driven table XSS), ISSUE-019 (CSV formula injection), ISSUE-010 (CORS
+  allowlist + `/api/chat` rate limiting + body validation), ISSUE-014 (system
+  prompt grounding constraints). Verified in a headless browser (XSS payload
+  renders inert; normal queries still work) and by load-testing the rate limiter
+  (429 after cap) and CORS allowlist. Commits `727b73a` (security/correctness)
+  and `5e38408` (ISSUE-028 hygiene: `.DS_Store` untracked, `react-chartjs-2` and
+  unused `import math` removed, repo URLs repointed). ISSUE-023 investigated and
+  downgraded to **Verified — no change** (stats match the data; "2005–2026"
+  covers 99.7% of records). Still open for next batches: ISSUE-008 (needs a
+  hosted backend URL), 013, 015, 016, 017, 018, 020, 021, 022, 024, 025, 026,
+  027, and the residual parts of 028.
