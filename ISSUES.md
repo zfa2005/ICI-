@@ -48,6 +48,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-026** | Data provenance (manual vs automated, source URLs) not surfaced in the UI | Data / Product | 🔵 Low | Open |
 | **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
 | **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | 🟡 Partly fixed |
+| **ISSUE-029** | Assistant: opening the Chats sidebar overlays the chat instead of shifting it right | Frontend / UX | 🔵 Low | Open |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
 *ISSUE-008+ come from the 2026-07-13 full-repo codebase audit — see the "Codebase Audit" section below. Severity key adds 🔵 Low.*
@@ -793,6 +794,35 @@ ISSUE-016).
 
 ---
 
+## UI / UX Reports
+
+### ISSUE-029: Opening the Assistant Chats sidebar overlays the chat instead of shifting it right
+**Severity: Low** (UX polish). **Reported 2026-07-13.** In the AI Assistant,
+opening the left "Chats" history panel does not move the chat column — the panel
+slides out *over the top* of it. The chat should shift to the right along with
+the sidebar (a push/reflow), so both sit side by side.
+
+Why it happens: on wide screens the chat already reflows —
+`.assistant .main-wrapper` carries `margin-left: 220px` and drops to `0` when the
+`.sidebar-collapsed` class is present (`frontend/src/pages/Assistant.css:792-794`
+and `:49`). But the `@media (max-width: 900px)` block forces
+`.assistant .main-wrapper { margin-left: 0 }` **unconditionally**
+(`frontend/src/pages/Assistant.css:804-813`), so below that width the panel
+becomes an off-canvas overlay and the chat stays put. The collapse state is a
+class toggled on the component root (`setSidebarCollapsed`,
+`frontend/src/pages/Assistant.jsx:1108-1109`), and the panel starts collapsed on
+narrow screens (`Assistant.jsx:1280-1282`).
+
+**Fix options:** (a) in the ≤900px block, drive `margin-left` off the
+`.sidebar-collapsed` state the same way the desktop rule does, so opening the
+panel pushes the chat right instead of covering it; or (b) raise the push
+breakpoint. Caveat: on a genuinely narrow phone, a 220–250px push leaves very
+little room for the chat, so either keep the overlay only below some smaller
+width, or scale the panel/content — worth deciding what width the push should
+start at rather than pushing at every size.
+
+---
+
 ## Changelog
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit
@@ -842,3 +872,6 @@ ISSUE-016).
   ISSUE-008 backend 502s). Commit `3937df9`. Remaining: 008 (needs host), 013
   (commit source + requirements), 016, 018 (rest), 020 (perf), 021, 022, 024,
   025, 026, 027, and 028's LICENSE/race items.
+- **2026-07-13** — Logged ISSUE-029 (user-reported): opening the Assistant Chats
+  sidebar overlays the chat instead of shifting it right, because the ≤900px
+  media query forces `main-wrapper` `margin-left: 0` unconditionally.
