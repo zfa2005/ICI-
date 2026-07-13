@@ -14,6 +14,12 @@ ici_chats.db
 ici_chats.db-shm
 ici_chats.db-wal
 
+# ── ICI research workspace (large local-only assets) ──────────────────────────
+# ~1.9 GB of source PDFs, bill texts, and CSV corpora that the Python RAG
+# pipeline reads locally. Far too large for the site repo — kept on-machine
+# only, never pushed. See ISSUES.md "Asset Inventory" / PIPELINEWORKFLOW.md.
+ici_workspace/
+
 # ── Node.js ───────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*
