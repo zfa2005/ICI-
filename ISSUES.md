@@ -34,12 +34,12 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-012** | Contact form silently discards every submission | Frontend | 🟠 High | Open (owner) |
 | **ISSUE-013** | Data pipeline not reproducible — source CSV absent, hardcoded absolute paths | Data Pipeline | 🟠 High | Open |
 | **ISSUE-014** | System prompt does not constrain hallucination (no "use only provided data") | AI Assistant | 🟠 High | 🟢 Fixed |
-| **ISSUE-015** | The entire app exists twice — legacy `src/pages/*.html` vs the React frontend | Architecture | 🟡 Medium | Open |
+| **ISSUE-015** | The entire app exists twice — legacy `src/pages/*.html` vs the React frontend | Architecture | 🟡 Medium | 🟢 Fixed |
 | **ISSUE-016** | God files with imperative DOM manipulation inside React | Architecture | 🟡 Medium | Open |
-| **ISSUE-017** | `typeMap` & state maps duplicated across 5+ places (already drifting) | Architecture / Data | 🟡 Medium | Open |
-| **ISSUE-018** | Copy-pasted logic across the two chat interfaces (~60%+ shared) | Architecture | 🟡 Medium | Open |
+| **ISSUE-017** | `typeMap` & state maps duplicated across 5+ places (already drifting) | Architecture / Data | 🟡 Medium | 🟢 Fixed |
+| **ISSUE-018** | Copy-pasted logic across the two chat interfaces (~60%+ shared) | Architecture | 🟡 Medium | 🟡 Reduced |
 | **ISSUE-019** | CSV export formula injection (no `= + - @` neutralization) | Security | 🟡 Medium | 🟢 Fixed |
-| **ISSUE-020** | 6.24 MB data file, byte-duplicated, fully parsed on every page load | Performance | 🟡 Medium | Open |
+| **ISSUE-020** | 6.24 MB data file, byte-duplicated, fully parsed on every page load | Performance | 🟡 Medium | 🟡 Partly fixed |
 | **ISSUE-021** | Widespread null/missing fields only partly handled (164 null years, etc.) | Data / Frontend | 🟡 Medium | Open |
 | **ISSUE-022** | No loading / error / empty states; silent `catch {}` swallowing failures | Frontend / UX | 🟡 Medium | Open |
 | **ISSUE-023** | Hero stats hardcoded; "2005–2026 / 21 yrs" coverage label is wrong | Frontend / Accuracy | 🟡 Medium | 🟢 Verified |
@@ -595,6 +595,12 @@ copies of the XSS bugs (ISSUE-009/011) and the unpinned CDN Chart.js. **Fix:**
 delete `src/pages/*.html` and repoint `server.js` static routes at
 `frontend/dist`, or formally archive them. Removes ~380 KB and half the XSS
 surface.
+**🟢 Fixed 2026-07-13 (3937df9):** deleted all five legacy pages and repointed
+`server.js` at `frontend/dist` with an SPA fallback to `index.html` (dev stays
+on the Vite server; prod is GitHub Pages). This also removed the last copies of
+the ISSUE-009/011 XSS and the unpinned-CDN Chart.js (the ISSUE-028 residual).
+Verified `server.js` serves `/`, SPA routes, `/data`, `/research.html`, and
+404s correctly. Docs still describe the old layout — tracked in ISSUE-024.
 
 ### ISSUE-016: God files with imperative DOM manipulation inside React
 **Severity: Medium.** `frontend/src/pages/Assistant.jsx` is 77 KB / ~1,215
@@ -620,6 +626,13 @@ the single source of truth for `typeMap` (it already carries one) and derive
 the state map from `metadata.states`; delete the hardcoded copies. Overlaps
 with ISSUE-005 (incomplete type coverage) — both dissolve once the taxonomy
 comes from one place (see the 116-subtype taxonomy note in the Asset Inventory).
+**🟢 Fixed 2026-07-13 (3937df9):** state maps (previously hardcoded four times
+with differing, incomplete contents) now come from one module,
+`frontend/src/lib/usStates.js` (full 50 + DC + PR, `resolveStateCode` helper),
+imported by both chat components — so "compare Ohio and Michigan" resolves
+consistently everywhere. `typeMap` was already single-sourced
+(`convert_to_json.py` → `ici_data.json` → `DATA.typeMap`); deleting the legacy
+HTML (ISSUE-015) removed its remaining hardcoded copies.
 
 ### ISSUE-018: Copy-pasted logic across the two chat interfaces
 **Severity: Medium.** `loadData`, `getDataContext`, `formatResponse`,
@@ -631,6 +644,12 @@ extract framework-agnostic modules — `lib/iciData.js` (load/cache),
 `lib/queryContext.js` (aggregation), `lib/markdown.js` (sanitized format),
 `lib/charts.js`, `lib/maps.js` — imported by React (and the HTML if kept).
 Deleting the legacy set (ISSUE-015) removes half of this outright.
+**🟡 Reduced 2026-07-13 (3937df9):** ISSUE-015 deleted the legacy HTML (the
+Assistant↔chatbot-ai and DataExplorer↔chatbot duplication), and ISSUE-017
+extracted the first shared module (`lib/usStates.js`). The remaining
+duplication is between `Assistant.jsx` and `DataExplorer.jsx` themselves
+(`loadData`, `formatResponse`, chart setup, `esc`) — still to extract into the
+`lib/` structure above.
 
 ### ISSUE-019: CSV export formula injection
 **Severity: Medium.** `frontend/src/pages/DataExplorer.jsx:472-491` doubles
@@ -654,6 +673,12 @@ engines then `concat` + `.map(...spread)` all 13,524 rows into a new array on
 every query (`Assistant.jsx:710-712`). **Fix:** de-dupe to one canonical copy
 (build step copies into `dist`); cache the `allLaws` concat once; longer term,
 shard or precompute aggregates (ties into ISSUE-001's server-side store).
+**🟡 Partly fixed 2026-07-13 (3937df9):** de-duplicated — deleted the
+byte-identical root `data/ici_data.json`; the single canonical copy is
+`frontend/public/data/ici_data.json` (Vite copies it into `dist` at build), and
+`convert_to_json.py` now writes there. **Still open:** the 6.24 MB file is still
+fetched and JSON-parsed in full on every load, and both engines rebuild the
+`allLaws` array per query — the caching/sharding/precompute work remains.
 
 ### ISSUE-021: Widespread null/missing fields only partly handled
 **Severity: Medium.** Field census over all 13,524 records: **year missing 164,
@@ -759,11 +784,12 @@ and an alert on upstream failures.
   in-flight flag (`Assistant.jsx:1086-1108`); low-risk race, tighten during the
   ISSUE-016 refactor.
 
-**🟡 Partly fixed 2026-07-13 (727b73a / 5e38408):** done — `.DS_Store`
-untracked; `react-chartjs-2` removed; unused `import math` removed; root
-`package.json` URLs repointed at `zfa2005/ICI-`. Still open — legacy CDN SRI
-(moot once ISSUE-015 deletes the legacy HTML), `LICENSE` (needs an owner
-decision on license type), and the chat-send race (defer to ISSUE-016).
+**🟡 Partly fixed 2026-07-13 (727b73a / 5e38408 / 3937df9):** done —
+`.DS_Store` untracked; `react-chartjs-2` removed; unused `import math` removed;
+root `package.json` URLs repointed at `zfa2005/ICI-`; **legacy CDN SRI now moot**
+(the unpinned-Chart.js files were deleted by ISSUE-015). Still open — `LICENSE`
+(needs an owner decision on license type) and the chat-send race (defer to
+ISSUE-016).
 
 ---
 
@@ -804,3 +830,15 @@ decision on license type), and the chat-send race (defer to ISSUE-016).
   covers 99.7% of records). Still open for next batches: ISSUE-008 (needs a
   hosted backend URL), 013, 015, 016, 017, 018, 020, 021, 022, 024, 025, 026,
   027, and the residual parts of 028.
+- **2026-07-13 (fix batch 2 — architecture cleanup)** — ISSUE-015 (deleted the
+  ~380 KB legacy `src/pages/*.html` duplicate app; repointed `server.js` at
+  `frontend/dist` with SPA fallback), ISSUE-017 (extracted `lib/usStates.js` as
+  the single source for state maps; confirmed `typeMap` single-sourced),
+  ISSUE-020 (de-duped to one canonical `ici_data.json`; pipeline writes there).
+  Knock-on: ISSUE-018 reduced, ISSUE-028's CDN-SRI residual now moot, and the
+  pipeline path fix advances ISSUE-013. Verified: build/lint pass; `server.js`
+  serves the built app and SPA routes; DataExplorer state queries and the
+  Assistant mount cleanly in a browser (the only console errors are the known
+  ISSUE-008 backend 502s). Commit `3937df9`. Remaining: 008 (needs host), 013
+  (commit source + requirements), 016, 018 (rest), 020 (perf), 021, 022, 024,
+  025, 026, 027, and 028's LICENSE/race items.
