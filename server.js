@@ -489,40 +489,40 @@ http.createServer(async (req, res) => {
   }
 
 
-  // ── Static file server ────────────────────────────────────────────────────
-  // Files are no longer all in the project root — they live in subdirectories
-  // organised by concern (src/pages, data, research). The server searches each
-  // directory in priority order until it finds the requested file.
+  // ── Static file server (built React app) ──────────────────────────────────
+  // The old standalone src/pages/*.html duplicates were deleted (ISSUE-015);
+  // the single front-end is now the React app under frontend/. Production is
+  // served by GitHub Pages; this static server exists so a local
+  // `npm run build` (in frontend/) + `npm start` can preview the real app
+  // alongside the API. Everything the browser needs — index.html, hashed
+  // assets, data/ici_data.json, research.html — is emitted into frontend/dist.
   //
-  // Search order:
-  //   1. src/pages/   — HTML pages (home, team, contact, chatbot-ai, chatbot)
-  //   2. data/        — JSON data files (ici_data.json)
-  //   3. research/    — Research publication (index.html)
+  // Day-to-day development uses the Vite dev server (`npm run dev` in frontend/),
+  // which serves the front-end with HMR and proxies /api to this server.
   //
-  // Path traversal protection:
-  //   Each candidate path is checked against its own root (not just __dirname),
-  //   so a request for /../../etc/passwd cannot escape any of the three roots.
-  const STATIC_ROOTS = [
-    path.join(__dirname, 'src', 'pages'),
-    path.join(__dirname, 'data'),
-    path.join(__dirname, 'research'),
-  ];
+  // Path-traversal protection: the resolved path must stay inside DIST_ROOT.
+  const DIST_ROOT = path.join(__dirname, 'frontend', 'dist');
+  const urlPath   = pathname.split('?')[0];
 
-  const urlPath = (pathname === '/' ? '/home.html' : pathname).split('?')[0];
-
-  // Walk each root in order; return the first file that exists and passes the
-  // traversal check. Returns null if nothing matches.
   function resolveStatic(reqPath) {
-    for (const root of STATIC_ROOTS) {
-      const candidate = path.resolve(root, '.' + reqPath);
-      if (!candidate.startsWith(root + path.sep) && candidate !== root) continue;
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
-    }
+    const candidate = path.resolve(DIST_ROOT, '.' + reqPath);
+    if (!candidate.startsWith(DIST_ROOT + path.sep) && candidate !== DIST_ROOT) return null;
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
     return null;
   }
 
-  const filePath = resolveStatic(urlPath);
-  if (!filePath) { res.writeHead(404); res.end('Not found'); return; }
+  // Client-side routing: an extensionless request (e.g. /team, /assistant) is a
+  // React Router path, so fall back to index.html and let the app route it.
+  // A miss with an extension is a genuine 404.
+  let filePath = resolveStatic(urlPath === '/' ? '/index.html' : urlPath);
+  if (!filePath && !path.extname(urlPath)) filePath = resolveStatic('/index.html');
+  if (!filePath) {
+    res.writeHead(404);
+    res.end(fs.existsSync(DIST_ROOT)
+      ? 'Not found'
+      : 'Front-end not built — run `npm run build` in frontend/, then restart.');
+    return;
+  }
 
   fs.readFile(filePath, (err, fileData) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
@@ -532,8 +532,8 @@ http.createServer(async (req, res) => {
   });
 
 }).listen(PORT, () => {
-  console.log(`\nICI server → http://localhost:${PORT}`);
-  console.log(`  Home         → http://localhost:${PORT}/`);
-  console.log(`  AI Assistant → http://localhost:${PORT}/chatbot-ai.html`);
-  console.log(`  Research     → http://localhost:${PORT}/index.html\n`);
+  console.log(`\nICI API server → http://localhost:${PORT}`);
+  console.log(`  API routes    → /api/chat, /api/chats/*`);
+  console.log(`  Static        → serves frontend/dist if built (\`npm run build\` in frontend/)`);
+  console.log(`  Dev front-end → \`npm run dev\` in frontend/ (proxies /api here)\n`);
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Chart from 'chart.js/auto';
 import { withBase } from '../utils/withBase';
+import { resolveStateCode } from '../lib/usStates';
 import './DataExplorer.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,15 +107,8 @@ export default function DataExplorer() {
                 q.match(/\b(california|texas|florida|new york|arizona|illinois|georgia|north carolina|ohio|michigan|pennsylvania|new jersey|virginia|washington|massachusetts|colorado|maryland|minnesota|oregon|wisconsin)\b/i);
 
             if (stateMatch) {
-                const stateMap = {
-                    'california': 'CA', 'texas': 'TX', 'florida': 'FL', 'new york': 'NY', 'arizona': 'AZ',
-                    'illinois': 'IL', 'georgia': 'GA', 'north carolina': 'NC', 'ohio': 'OH', 'michigan': 'MI',
-                    'pennsylvania': 'PA', 'new jersey': 'NJ', 'virginia': 'VA', 'washington': 'WA',
-                    'massachusetts': 'MA', 'colorado': 'CO', 'maryland': 'MD', 'minnesota': 'MN',
-                    'oregon': 'OR', 'wisconsin': 'WI'
-                };
                 let stateCode = stateMatch[1] || stateMatch[2] || stateMatch[3];
-                stateCode = stateMap[stateCode.toLowerCase()] || stateCode.toUpperCase();
+                stateCode = resolveStateCode(stateCode) || stateCode.toUpperCase();
 
                 const stateLaws = allLaws.filter(l => l.state === stateCode);
                 if (stateLaws.length > 0) {
@@ -166,9 +160,8 @@ export default function DataExplorer() {
 
             const compareMatch = q.match(/compare\s+(\w+)\s+(?:and|vs?\.?|to|with)\s+(\w+)/i);
             if (compareMatch) {
-                const stateMap = { 'california': 'CA', 'texas': 'TX', 'florida': 'FL', 'newyork': 'NY', 'arizona': 'AZ' };
-                let state1 = stateMap[compareMatch[1].toLowerCase()] || compareMatch[1].toUpperCase();
-                let state2 = stateMap[compareMatch[2].toLowerCase()] || compareMatch[2].toUpperCase();
+                let state1 = resolveStateCode(compareMatch[1]) || compareMatch[1].toUpperCase();
+                let state2 = resolveStateCode(compareMatch[2]) || compareMatch[2].toUpperCase();
                 const laws1 = allLaws.filter(l => l.state === state1);
                 const laws2 = allLaws.filter(l => l.state === state2);
                 if (laws1.length > 0 && laws2.length > 0) {

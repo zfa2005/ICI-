@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Chart from 'chart.js/auto';
 import { withBase } from '../utils/withBase';
+import { STATE_NAME_TO_CODE, VALID_STATE_CODES } from '../lib/usStates';
 import './Assistant.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,13 +63,8 @@ export default function Assistant() {
             { label: 'Policing Laws', query: 'Analyze the policing and enforcement laws' },
         ];
 
-        const STATE_NAMES = {
-            california: 'CA', texas: 'TX', florida: 'FL', 'new york': 'NY', arizona: 'AZ',
-            illinois: 'IL', georgia: 'GA', colorado: 'CO', washington: 'WA', oregon: 'OR',
-            virginia: 'VA', maryland: 'MD', massachusetts: 'MA', 'new jersey': 'NJ',
-            pennsylvania: 'PA', ohio: 'OH', michigan: 'MI', minnesota: 'MN', wisconsin: 'WI',
-            nevada: 'NV', 'north carolina': 'NC', tennessee: 'TN', utah: 'UT', iowa: 'IA',
-        };
+        // State name↔code data comes from the shared module (ISSUE-017).
+        const STATE_NAMES = STATE_NAME_TO_CODE;
 
         function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -717,24 +713,8 @@ export default function Assistant() {
             let relevantData = [];
             let summary = {};
 
-            const validStateCodes = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA',
-                'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-                'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT',
-                'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR'];
-
-            const stateNameMap = {
-                'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
-                'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
-                'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
-                'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
-                'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
-                'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-                'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
-                'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
-                'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
-                'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
-                'puerto rico': 'PR', 'district of columbia': 'DC'
-            };
+            const validStateCodes = VALID_STATE_CODES;
+            const stateNameMap = STATE_NAME_TO_CODE;
 
             let detectedStates = [];
             for (const [name, code] of Object.entries(stateNameMap)) {

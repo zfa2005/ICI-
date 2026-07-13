@@ -5,11 +5,24 @@ Reads ici_master.csv and writes ici_data.json for the ICI chatbot.
 
 import csv
 import json
+import os
 from datetime import date
 from collections import defaultdict
 
-CSV_PATH = r"C:\Users\ZEN\Downloads\ICI Claude Workspace\data\ici_master\ici_master.csv"
-JSON_PATH = r"C:\Users\ZEN\UsersZENImmigrant-Climate\ici_data.json"
+# Paths are resolved relative to this script so the converter runs on any
+# machine (ISSUE-013). Override the source with the ICI_MASTER_CSV env var.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+
+# Source: the in-repo research workspace copy of the master CSV (gitignored,
+# local-only — see ISSUES.md Asset Inventory). Set ICI_MASTER_CSV to point elsewhere.
+CSV_PATH = os.environ.get("ICI_MASTER_CSV") or os.path.join(
+    REPO_ROOT, "ici_workspace", "data", "ici_master", "ici_master.csv")
+
+# Output: the single canonical file the React app serves. Vite copies
+# frontend/public/ into frontend/dist/ at build, so there is exactly one
+# source of truth for the data (ISSUE-020).
+JSON_PATH = os.path.join(REPO_ROOT, "frontend", "public", "data", "ici_data.json")
 
 TYPE_MAP = {
     "P": "Police/Enforcement",
