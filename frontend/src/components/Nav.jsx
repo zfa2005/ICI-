@@ -10,27 +10,31 @@ export default function Nav() {
     const location = useLocation();
     const onHome = location.pathname === '/';
     const [menuOpen, setMenuOpen] = useState(false);
+    const [activeSection, setActiveSection] = useState(null);
+    const [researchOpen, setResearchOpen] = useState(false);
 
     // Close the mobile menu whenever navigation happens.
     useEffect(() => { setMenuOpen(false); }, [location.pathname, location.hash]);
 
     // Highlight whichever hash-section is currently in view, but only on the
-    // home page where those sections actually exist.
+    // home page where those sections actually exist. The active section lives
+    // in React state so it is the single source of truth for link styling:
+    // it clears when no section is in view (back at the hero) and when
+    // navigating to another page.
     useEffect(() => {
-        if (!onHome) return;
+        if (!onHome) { setActiveSection(null); return; }
         const sections = HASH_LINKS
             .map(id => document.getElementById(id))
             .filter(Boolean);
         if (!sections.length) return;
 
+        const visible = new Set();
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    document.querySelectorAll('.nav-link[data-hash]').forEach(link => {
-                        link.classList.toggle('active', link.dataset.hash === entry.target.id);
-                    });
-                }
+                if (entry.isIntersecting) visible.add(entry.target.id);
+                else visible.delete(entry.target.id);
             });
+            setActiveSection(HASH_LINKS.find(id => visible.has(id)) ?? null);
         }, { rootMargin: '-40% 0px -55% 0px' });
 
         sections.forEach(s => observer.observe(s));
@@ -47,14 +51,20 @@ export default function Nav() {
                 </Link>
 
                 <div className="nav-links">
-                    <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Home</NavLink>
-                    <Link to="/#why-ici" className="nav-link" data-hash="why-ici">Why ICI</Link>
-                    <Link to="/#features" className="nav-link" data-hash="features">Features</Link>
-                    <Link to="/#who-we-serve" className="nav-link" data-hash="who-we-serve">Who We Serve</Link>
+                    <NavLink to="/" end className={({ isActive }) => `nav-link${isActive && !activeSection ? ' active' : ''}`}>Home</NavLink>
+                    <Link to="/#why-ici" className={`nav-link${activeSection === 'why-ici' ? ' active' : ''}`}>Why ICI</Link>
+                    <Link to="/#features" className={`nav-link${activeSection === 'features' ? ' active' : ''}`}>Features</Link>
+                    <Link to="/#who-we-serve" className={`nav-link${activeSection === 'who-we-serve' ? ' active' : ''}`}>Who We Serve</Link>
                     <NavLink to="/team" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Team</NavLink>
 
-                    <div className="nav-dropdown">
-                        <button className="nav-dropdown-btn">
+                    <div
+                        className="nav-dropdown"
+                        onMouseEnter={() => setResearchOpen(true)}
+                        onMouseLeave={() => setResearchOpen(false)}
+                        onFocus={() => setResearchOpen(true)}
+                        onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setResearchOpen(false); }}
+                    >
+                        <button className="nav-dropdown-btn" aria-haspopup="true" aria-expanded={researchOpen}>
                             Research <span className="chevron">▾</span>
                         </button>
                         <div className="nav-dropdown-menu">
