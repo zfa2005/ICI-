@@ -5,7 +5,6 @@ Reads ici_master.csv and writes ici_data.json for the ICI chatbot.
 
 import csv
 import json
-import math
 from datetime import date
 from collections import defaultdict
 
