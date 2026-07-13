@@ -27,8 +27,30 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-005** | Law-type keyword coverage is incomplete (3 of 9 types) | AI Assistant | 🟡 Medium | Open |
 | **ISSUE-006** | State field has data-quality bugs (`'null'`, `D.C.`/`DC`, non-US entries) | Data Pipeline | 🟡 Medium | Open |
 | **ISSUE-007** | App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace | Data Pipeline / AI Assistant | 🟠 High | Open |
+| **ISSUE-008** | AI Assistant is dead in production — backend URL is still a placeholder | Frontend / Deploy | 🔴 Critical | Open |
+| **ISSUE-009** | Stored XSS via chat messages (raw user input → `innerHTML`, persisted & replayed) | Security | 🔴 Critical | Open |
+| **ISSUE-010** | Chat proxy has wildcard CORS and no rate limiting → API-credit theft | Security / Backend | 🟠 High | Open |
+| **ISSUE-011** | Unsanitized AI/markdown output + data-driven XSS in result tables | Security | 🟠 High | Open |
+| **ISSUE-012** | Contact form silently discards every submission | Frontend | 🟠 High | Open |
+| **ISSUE-013** | Data pipeline not reproducible — source CSV absent, hardcoded absolute paths | Data Pipeline | 🟠 High | Open |
+| **ISSUE-014** | System prompt does not constrain hallucination (no "use only provided data") | AI Assistant | 🟠 High | Open |
+| **ISSUE-015** | The entire app exists twice — legacy `src/pages/*.html` vs the React frontend | Architecture | 🟡 Medium | Open |
+| **ISSUE-016** | God files with imperative DOM manipulation inside React | Architecture | 🟡 Medium | Open |
+| **ISSUE-017** | `typeMap` & state maps duplicated across 5+ places (already drifting) | Architecture / Data | 🟡 Medium | Open |
+| **ISSUE-018** | Copy-pasted logic across the two chat interfaces (~60%+ shared) | Architecture | 🟡 Medium | Open |
+| **ISSUE-019** | CSV export formula injection (no `= + - @` neutralization) | Security | 🟡 Medium | Open |
+| **ISSUE-020** | 6.24 MB data file, byte-duplicated, fully parsed on every page load | Performance | 🟡 Medium | Open |
+| **ISSUE-021** | Widespread null/missing fields only partly handled (164 null years, etc.) | Data / Frontend | 🟡 Medium | Open |
+| **ISSUE-022** | No loading / error / empty states; silent `catch {}` swallowing failures | Frontend / UX | 🟡 Medium | Open |
+| **ISSUE-023** | Hero stats hardcoded; "2005–2026 / 21 yrs" coverage label is wrong | Frontend / Accuracy | 🟡 Medium | Open |
+| **ISSUE-024** | README & CLAUDE.md materially outdated (wrong architecture, sizes, counts) | Docs | 🔵 Low | Open |
+| **ISSUE-025** | No automated tests anywhere | Testing | 🔵 Low | Open |
+| **ISSUE-026** | Data provenance (manual vs automated, source URLs) not surfaced in the UI | Data / Product | 🔵 Low | Open |
+| **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
+| **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | Open |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
+*ISSUE-008+ come from the 2026-07-13 full-repo codebase audit — see the "Codebase Audit" section below. Severity key adds 🔵 Low.*
 
 ---
 
@@ -410,6 +432,300 @@ marketing copy says 2005–2020, which undersells the corpus.
 
 ---
 
+## Codebase Audit — Production-Readiness Review (2026-07-13)
+
+> Full-repo audit ahead of public deployment. Every source file was read in
+> full (`server.js`, `api/chat.js`, `scripts/convert_to_json.py`, the five
+> legacy `src/pages/*.html`, and the whole React app under `frontend/src/`);
+> `data/ici_data.json` was analysed programmatically (counts, null-field
+> census, encoding, XSS-character scan); git history was scanned for secrets.
+> **Overall grade: D+ — not production-ready.** The two ship-blockers are
+> ISSUE-008 (flagship AI feature is dead on the live site) and ISSUE-010
+> (the chat proxy can be abused to drain API credits); fix those together,
+> since exposing a working endpoint without rate limiting turns "feature down"
+> into "credits drained." The ISSUE-001…007 RAG work above is orthogonal and
+> still stands — this section is about security, correctness, and deployment,
+> not retrieval quality.
+>
+> **What was checked and found clean (no padding):** no secrets in code or
+> git history; the server-side key-proxy design is correct and the key is
+> never reachable client-side; `ici_data.json` is internally consistent
+> (`totalCount` 13,524 = sum of arrays; `posNeg ∈ {0,1}` for all rows);
+> UTF-8 encoding is intact (333 non-ASCII rows, no mojibake); Chart.js
+> instances are destroyed before re-creation (no chart memory leak).
+
+### ISSUE-008: AI Assistant is dead in production — backend URL is a placeholder
+**Severity: Critical.** `frontend/src/pages/Assistant.jsx:23-25` still ships
+the literal placeholder as the production API host:
+```js
+const API_BASE = /\.github\.io$/.test(location.hostname)
+    ? 'https://REPLACE-WITH-RENDER-URL.onrender.com'   // never replaced
+    : '';
+```
+On the deployed GitHub Pages site every `/api/*` call (chat, history, title
+generation) goes to a host that doesn't exist — the 502s are already visible
+in the console. The most prominently advertised capability ("Get instant
+answers from the AI assistant", `frontend/src/pages/Home.jsx:198`) does
+nothing for a public visitor. **Fix:** stand up the Node + SQLite backend
+(`server.js`) on a real host (Render/Fly/etc.) with `ANTHROPIC_API_KEY` set,
+replace the placeholder with its URL, and apply ISSUE-010 before exposing it.
+The legacy `src/pages/chatbot-ai.html:1235-1237` carries the same placeholder.
+
+### ISSUE-009: Stored XSS via chat messages
+**Severity: Critical.** `addMessage` writes content into `innerHTML` with no
+escaping (`frontend/src/pages/Assistant.jsx:690`), and the user's raw query is
+passed straight in (`:1083`):
+```js
+div.innerHTML = `<div class="message-content">${content}</div>`; // :690
+addMessage('user', query);                                        // :1083
+```
+The message is then POSTed to `/api/chat`, stored in SQLite, and replayed
+through the same path on reload (`:596-597`), so `<img src=x onerror=…>` is
+**stored** and re-executes for anyone who later opens that chat. An `esc()`
+helper already exists (`:52-54`) and is correctly used for chat *names* — it
+was simply never applied to message bodies. Same bug in the legacy twin
+(`src/pages/chatbot-ai.html:1585` + `:2088`). **Fix:** `esc()` user content
+before insertion; render bot content only through the sanitized path (ISSUE-011).
+
+### ISSUE-010: Chat proxy has wildcard CORS and no rate limiting → credit theft
+**Severity: High.** `server.js:255` sets `Access-Control-Allow-Origin: '*'`
+with no throttle, auth, or request cap anywhere in the handler; `api/chat.js:3`
+does the same and additionally pairs `Origin: *` with
+`Access-Control-Allow-Credentials: true` (an invalid/insecure combination).
+Any third-party site or a `curl` loop can drive paid Claude completions on the
+authors' account. At Sonnet pricing with `max_tokens: 1024` plus a
+~thousand-token system prompt per call, sustained abuse is **tens of dollars
+per hour, unbounded** — a weekend is a four-figure bill. **Fix:** restrict
+CORS to the known front-end origin(s); add per-IP rate limiting (a small
+in-memory token bucket suffices for `server.js`; use the platform limiter or a
+KV store on serverless); cap conversation length and `max_tokens`; consider a
+shared secret or Turnstile on the endpoint.
+
+### ISSUE-011: Unsanitized AI/markdown output + data-driven XSS in tables
+**Severity: High.** `formatResponse` builds HTML from the model's raw text via
+regex and never escapes non-markdown characters
+(`frontend/src/pages/Assistant.jsx:929-1010`, rendered at `:1093`). Separately,
+the result tables interpolate `law.description` — external data — into both an
+attribute and cell text unescaped (`frontend/src/pages/DataExplorer.jsx:459`,
+`Assistant.jsx:1065`):
+```js
+html += `<td class="truncate" title="${law.description || ''}">${desc}</td>`;
+```
+**This is live, not hypothetical:** a scan of `ici_data.json` found **146
+descriptions containing a `"`** (which breaks out of the `title="…"`
+attribute) and **1 containing a `<`**. As automated-pipeline rows grow, a
+description like `"><img src=x onerror=…>` becomes executable. **Fix:** escape
+every data interpolation (`esc(...)`), and route AI markdown through a vetted
+sanitizer — a build system already exists, so add `marked` + `DOMPurify`
+(`DOMPurify.sanitize(marked.parse(text))`) instead of the hand-rolled regex
+formatter. Correlates with the hallucination constraint in ISSUE-014.
+
+### ISSUE-012: Contact form silently discards every submission
+**Severity: High.** `handleSubmit` validates the email then just sets
+`submitted = true` — there is no `fetch`, no `mailto`, no backend
+(`frontend/src/pages/Contact.jsx:43-52`). The user sees "Enquiry received —
+the research team will be in touch," but nothing is transmitted anywhere. Real
+enquiries from law firms, agencies, and researchers vanish. **Fix:** wire the
+form to a real destination (a form service like Formspree, an email API, or a
+new backend route) before launch, or remove the success confirmation so it
+doesn't misrepresent what happened.
+
+### ISSUE-013: Data pipeline not reproducible — source absent, hardcoded paths
+**Severity: High.** `scripts/convert_to_json.py:12-13`:
+```python
+CSV_PATH  = r"C:\Users\ZEN\Downloads\ICI Claude Workspace\data\ici_master\ici_master.csv"
+JSON_PATH = r"C:\Users\ZEN\UsersZENImmigrant-Climate\ici_data.json"
+```
+Three compounding problems: (1) the input `ici_master.csv` is **not committed**
+(only the older 2005–2020 `.xlsx` files are in `data/source/`, a *different*
+dataset — hence the cross-check the audit wanted to run is impossible);
+(2) both paths are machine-local absolutes, so the script only runs on the
+author's PC; (3) the **output path is wrong** — it writes repo-root
+`ici_data.json`, but the app reads `data/ici_data.json` and
+`frontend/public/data/ici_data.json`, so running the script wouldn't even
+update the served files. No `requirements.txt` either (the script happens to
+use stdlib only). **Fix:** commit `ici_master.csv` (or document its location +
+license), make paths relative/CLI-driven, write to the served location(s), add
+a `scripts/README`. Ties into the master-file plan in ISSUE-007 / the Asset
+Inventory above.
+
+### ISSUE-014: System prompt does not constrain hallucination
+**Severity: High.** The system prompt (`frontend/src/pages/Assistant.jsx:880-902`)
+supplies aggregated numbers but never tells the model to use *only* the
+provided context or to say "I don't know" when data is absent — its rules
+govern terminology, not factuality. Combined with the keyword retrieval's
+silent "all laws / first 10 rows" fallback (**ISSUE-001**, **ISSUE-003**), the
+model can confidently answer from the wrong slice or invent a plausible
+statistic — a citable accuracy failure attached to the authors' names. **Fix:**
+add explicit grounding constraints ("Answer only from the data context below;
+if it's not there, say you don't have it; never estimate or invent numbers;
+every figure must appear in the context"), and echo the active filter to the
+user. This is the near-term mitigation until the RAG rebuild (ISSUE-001) lands.
+
+### ISSUE-015: The entire app exists twice — legacy HTML vs React
+**Severity: Medium.** Two parallel front-ends implement the same five screens:
+the legacy vanilla-HTML app (`src/pages/{home,team,contact,chatbot,chatbot-ai}.html`,
+~380 KB, served by `server.js`) and the React app (`frontend/src/pages/*`,
+deployed to Pages). `DataExplorer.jsx` ports `chatbot.html`; `Assistant.jsx`
+ports `chatbot-ai.html`. Only the React build is live; the legacy set is dead
+weight that still "works" enough to mislead maintainers and carries its own
+copies of the XSS bugs (ISSUE-009/011) and the unpinned CDN Chart.js. **Fix:**
+delete `src/pages/*.html` and repoint `server.js` static routes at
+`frontend/dist`, or formally archive them. Removes ~380 KB and half the XSS
+surface.
+
+### ISSUE-016: God files with imperative DOM manipulation inside React
+**Severity: Medium.** `frontend/src/pages/Assistant.jsx` is 77 KB / ~1,215
+lines; `DataExplorer.jsx` is 49 KB. Each is a single giant `useEffect` doing
+data loading, query parsing, aggregation, markdown→HTML, Chart.js rendering,
+SQLite CRUD, sidebar/project management, and modals — 5–6 responsibilities in
+one closure. Both manipulate the DOM directly (`document.createElement`,
+`innerHTML`, `querySelector('#id')`) instead of rendering from state, so React
+is a mounting shell and its automatic escaping (which would have prevented
+ISSUE-009/011) is bypassed. **Fix:** not a launch blocker but the
+highest-value refactor — extract shared modules (ISSUE-018) and move rendering
+to JSX/state, starting with the message list so escaping becomes automatic.
+
+### ISSUE-017: typeMap & state maps duplicated across 5+ places
+**Severity: Medium.** The `typeMap`/`TYPE_MAP` and state-name→code maps are
+independently re-declared in `scripts/convert_to_json.py:15-25`,
+`frontend/src/pages/Assistant.jsx:722+`, `DataExplorer.jsx`,
+`src/pages/chatbot-ai.html:1641`, and `src/pages/chatbot.html` — plus the type
+map is echoed into the system prompt. **They already disagree** (the Python
+`TYPE_MAP` maps `W`→Voting / `V`→Voting Rights and omits others). Changing one
+score weight or label means editing 5–6 files. **Fix:** make `ici_data.json`
+the single source of truth for `typeMap` (it already carries one) and derive
+the state map from `metadata.states`; delete the hardcoded copies. Overlaps
+with ISSUE-005 (incomplete type coverage) — both dissolve once the taxonomy
+comes from one place (see the 116-subtype taxonomy note in the Asset Inventory).
+
+### ISSUE-018: Copy-pasted logic across the two chat interfaces
+**Severity: Medium.** `loadData`, `getDataContext`, `formatResponse`,
+`addMessage`, `updateResultsTable`, the Chart.js setup, and `STATE_NAMES` are
+duplicated near-verbatim between `Assistant.jsx` and `chatbot-ai.html`, and
+between `DataExplorer.jsx` and `chatbot.html` (~60%+ shared per pair; e.g.
+`formatResponse` at `Assistant.jsx:929` ≈ `chatbot-ai.html:1891`). **Fix:**
+extract framework-agnostic modules — `lib/iciData.js` (load/cache),
+`lib/queryContext.js` (aggregation), `lib/markdown.js` (sanitized format),
+`lib/charts.js`, `lib/maps.js` — imported by React (and the HTML if kept).
+Deleting the legacy set (ISSUE-015) removes half of this outright.
+
+### ISSUE-019: CSV export formula injection
+**Severity: Medium.** `frontend/src/pages/DataExplorer.jsx:472-491` doubles
+quotes correctly but writes fields beginning with `=`, `+`, `-`, or `@` raw;
+opening the exported `ici_export.csv` in Excel/Sheets executes those cells as
+formulas. Descriptions are free text and can begin with such a character.
+**Fix:** prefix any cell starting with `= + - @` with a `'` (or leading space)
+during export.
+
+### ISSUE-020: 6.24 MB data file, byte-duplicated, fully parsed per load
+**Severity: Medium.** `data/ici_data.json` is **6.24 MB uncompressed / 0.81 MB
+gzipped** (not the "~1.7 MB" quoted in ISSUE-001, the README, and CLAUDE.md —
+all outdated). It is **byte-for-byte duplicated** at
+`frontend/public/data/ici_data.json` (identical MD5) — 13 MB of repo is the
+same file twice, and the two can drift if only one is regenerated. The whole
+file is fetched, parsed, and held in memory on every visit, and both chat
+engines then `concat` + `.map(...spread)` all 13,524 rows into a new array on
+every query (`Assistant.jsx:710-712`). **Fix:** de-dupe to one canonical copy
+(build step copies into `dist`); cache the `allLaws` concat once; longer term,
+shard or precompute aggregates (ties into ISSUE-001's server-side store).
+
+### ISSUE-021: Widespread null/missing fields only partly handled
+**Severity: Medium.** Field census over all 13,524 records: **year missing 164,
+state missing 20, county 6,762, city 7,739, sourceUrl 10,938 (81%).** No crash
+was found (comparisons are null-safe and charts guard `if (l.year)`), but null
+years are silently dropped from trend charts and the 20 stateless rows never
+match a state filter — completeness issues hidden from the user. Extends
+**ISSUE-006** (which flagged `'null'`, `D.C.`/`DC`, non-US entries in the state
+field) to the fuller null-field picture. **Fix:** normalize in the Phase-1
+pandas pass (ISSUE-006); surface "N records with unknown year excluded" on
+charts; decide a policy for stateless rows.
+
+### ISSUE-022: No loading / error / empty states; silent failures
+**Severity: Medium.** The 6 MB `ici_data.json` fetch has no spinner, retry, or
+error UI — on a slow link the page looks broken for seconds
+(`Assistant.jsx:667-675`, `DataExplorer.jsx`). `loadChatList` swallows errors
+with an empty `catch {}`, so when the backend is down (which it is in
+production — ISSUE-008) the sidebar just stays empty with no explanation. A
+zero-match filter in DataExplorer renders an empty table body rather than a "no
+results" message. **Fix:** add explicit loading/empty/error states; replace
+silent `catch {}` with visible degradation.
+
+### ISSUE-023: Hero stats hardcoded; coverage label wrong
+**Severity: Medium.** `frontend/src/pages/Home.jsx` hardcodes the hero stats.
+Verified against the data: **"13,524 Laws"** (lines 45, 137, 198) and
+**"3,491 287(g)"** (line 57) currently **match** the JSON exactly — so they're
+correct today, but hardcoded in three places and will drift as the dataset
+grows toward the ~13,533 master. The **"21 yrs — Coverage (2005–2026)"** label
+(lines 53-54) is **wrong**: the data's `yearRange` is **[1974, 2026]** with
+enacted-year records back to 1974 (the Asset Inventory above makes the same
+point — the master spans 1974–2026 and "2005–2020 undersells the corpus").
+**Fix:** derive counters from `DATA.metadata` at runtime; correct or footnote
+the coverage window.
+
+### ISSUE-024: README & CLAUDE.md materially outdated
+**Severity: Low** (high embarrassment risk). `README.md` describes a different
+app than the one that ships: "2005 to 2020" (data is 1974–2026); "~1.7 MB"
+(6.24 MB); `stateLaws 1,910 / localLaws 2,618 / yearRange [2005,2020]` (actually
+3,458 / 6,575 / [1974,2026]); the file-structure/architecture diagrams describe
+only `src/pages/*.html` and **omit the entire React `frontend/` that is
+actually deployed**; "AI assistant frontend: Vanilla JS + marked" (it's React
+with a custom regex formatter, not marked); the pandas/Excel "Updating the
+Data" recipe doesn't match `convert_to_json.py`. `CLAUDE.md` is stale the same
+way. **Fix:** rewrite both to match the React app, real data shape, and real
+pipeline.
+
+### ISSUE-025: No automated tests anywhere
+**Severity: Low** (structural risk). Zero test files; the root `package.json`
+`test` script is the npm placeholder that exits 1. Highest-value tests are
+data/aggregation correctness. **Proposed minimal suite (priority order):**
+(1) `ici_data.json` schema/invariants; (2) `getDataContext` counts for a known
+state vs fixture; (3) filter row-counts; (4) `formatResponse` escapes
+`< > "` (regression guard for ISSUE-011); (5) CSV export neutralizes quotes +
+formulas (ISSUE-019); (6) posNeg/tier→label mapping; (7) comparison-mode
+partitioning; (8) null-year rows excluded from trends but counted in totals;
+(9) `convert_to_json.py` on a tiny fixture; (10) Contact email-provider
+rejection.
+
+### ISSUE-026: Data provenance not surfaced in the UI
+**Severity: Low** (academically important). The converter carries `source`,
+`inManual`, `inAutomated` per record (`convert_to_json.py:58-60`) and the
+master has a `source` confidence signal (manual/automated/both — see Asset
+Inventory), yet the UI never distinguishes verified from automated laws, and
+**81% of records have no `sourceUrl`** so a user can't trace a claim to a
+statute. For a tool meant to support litigation/policy this is close to a
+requirement. **Fix:** show a provenance badge in results and the AI's cited
+rows; expose `sourceUrl`; consider flagging/excluding automated rows in
+headline counts. Depends on the richer master fields (ISSUE-007/013).
+
+### ISSUE-027: Observability is console-only
+**Severity: Low.** `server.js` logs via `console` (6 sites); `api/chat.js` does
+`console.error`. No structured logging, request logging, or error alerting — if
+the production chat backend fails (it does, ISSUE-008) nobody is notified; the
+only symptom is a client-side 502. **Fix:** add minimal request/error logging
+and an alert on upstream failures.
+
+### ISSUE-028: Git hygiene & miscellaneous
+**Severity: Low.** Grab-bag of quick items found during the sweep:
+- **`.DS_Store` is tracked** (6,148 bytes) despite being gitignored — committed
+  before the ignore rule. `git rm --cached .DS_Store`.
+- **`react-chartjs-2` is a declared dependency but never imported**
+  (`frontend/package.json:15`) — the app uses `chart.js/auto` directly. Dead.
+- **`import math` unused** in `convert_to_json.py:8`.
+- **Legacy CDN Chart.js is unpinned + no SRI** (`src/pages/chatbot-ai.html:10`,
+  `chatbot.html:10`) — `npm/chart.js` runs whatever jsDelivr serves as latest
+  with full page privileges. (Production React pins `chart.js@^4.5.1` via npm,
+  so the live site isn't exposed — this is legacy-only, moot if ISSUE-015 deletes them.)
+- **Root `package.json` `repository`/`homepage`/`bugs` point at
+  `vpham415/Immigrant-Climate`** (upstream), not `zfa2005/ICI-`.
+- **No `LICENSE` file** for code (root `package.json` claims ISC with no text)
+  or a stated license/terms for the dataset — decide before public release.
+- **Chat send has only the disabled-input guard** — no `AbortController` or
+  in-flight flag (`Assistant.jsx:1086-1108`); low-risk race, tighten during the
+  ISSUE-016 refactor.
+
+---
+
 ## Changelog
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit
@@ -422,3 +738,14 @@ marketing copy says 2005–2020, which undersells the corpus.
   the linkage keys between them. Added ISSUE-007 and the "Asset Inventory
   for the Accurate Pipeline" section mapping each asset to its role in the
   planned sentence-transformers + ChromaDB + reranker pipeline.
+- **2026-07-13** — Full-repo production-readiness codebase audit. Read every
+  source file, analysed `data/ici_data.json` programmatically, and scanned git
+  history for secrets. Added ISSUE-008 through ISSUE-028 and the "Codebase
+  Audit" section (security, correctness, deployment, docs, tests). Two
+  ship-blockers: ISSUE-008 (AI assistant dead in production) and ISSUE-010
+  (unprotected chat proxy → credit theft). Cross-referenced overlaps with the
+  existing RAG issues (ISSUE-014↔001/003, ISSUE-017↔005, ISSUE-021↔006).
+  Confirmed clean: no committed secrets, sound key-proxy design, internally
+  consistent data, intact encoding, no chart memory leak. Merged in from a
+  standalone `codebase_audit.md`, which was then deleted to keep this file the
+  single tracker.
