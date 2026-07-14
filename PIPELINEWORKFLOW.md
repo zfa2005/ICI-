@@ -100,8 +100,8 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 
 | # | Stage | Status |
 |---|---|---|
-| 1 | Data foundation (pandas ingest, clean, score) | 🔴 |
-| 2 | Structured query tools (SQL/pandas + FastAPI) | 🔴 |
+| 1 | Data foundation (pandas ingest, clean, score) | 🟢 |
+| 2 | Structured query tools (SQL/pandas + FastAPI) | 🟢 |
 | 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🔴 |
 | 4 | Reranker integration | 🔴 |
 | 5 | Claude tool-use wiring (replace regex context builder) | 🔴 |
@@ -263,3 +263,37 @@ eval fixtures only.
   asset inventory. Hybrid structured-first routing chosen over vector-only
   because most failing queries today are filter/aggregation questions, not
   similarity questions.
+- **2026-07-14 — Stages 1 & 2 built and gated (🟢).** Decisions made that the
+  plan left open:
+  - **Workspace root defaults to the in-repo `ici_workspace/`** (relative to the
+    repo), overridable via `ICI_WORKSPACE`, rather than the absolute
+    `C:\ICI Claude Workspace`. Absolute paths are what caused ISSUE-013; every
+    path in `config.py` is now relative or env-driven.
+  - **`requirements.txt` adds `pytest` + `httpx`** (test infrastructure for the
+    Stage 2 gate — not ML). ML packages still excluded until Stage 3.
+  - **`law_id` = master row index** (0-based, after dropping any duplicate
+    header) is the stable identity for `get_law()` and the full-text join.
+  - **ICI aggregates** (`ici_state_year`, `ici_county_year`) include only rows
+    with a resolved state + year + score; **186** rows lacking one are excluded
+    and that count is reported. `score_ici` reads these precomputed tables
+    (fixes ISSUE-002).
+  - **`score_ici(jurisdiction, …)`** takes a state code with an optional
+    `county` and a year or year range; label defaults to the state.
+  - **Full-text join is counted master→file** (how many master laws have text):
+    **543** state laws matched a bill text directly by `bill_id`, **1,011**
+    287(g) rows matched an MOA by `source_url` (= the doc's expected 1,011). The
+    plan's "263 direct" figure counted the other direction (files matching a
+    master id); both are correct, they measure different things.
+  - **Subtype validation is heuristic, not authoritative.** The workspace's
+    `Categories of SubFederal Laws.md` (the definitive 116-pair taxonomy) is
+    missing (noted in ISSUES.md gaps), so ingest validates `type ∈ taxonomy`
+    hard and reports the observed (type, subtype) pairs, flagging singletons for
+    review. This surfaced malformed subtypes → logged as **ISSUE-030**.
+  - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
+    professor to review/veto every normalization decision) in addition to the
+    machine `validation_report.md`.
+  - Stage 1 gate: 13,533/13,533 rows, **0** hard violations, state set = 50+DC
+    plus flagged territories (PR/GU/MP) + flagged foreign (Ontario). Stage 2
+    gate: **26/26** pytest tests pass — 2017 counts (287g=595, local=443,
+    state=380), 5 hand-verified state/year counts, and 3 `score_ici` spot-checks
+    all matched SQLite + manual pandas.

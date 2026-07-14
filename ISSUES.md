@@ -49,6 +49,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
 | **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | 🟡 Partly fixed |
 | **ISSUE-029** | Assistant: opening the Chats sidebar overlays the chat instead of shifting it right | Frontend / UX | 🔵 Low | Open |
+| **ISSUE-030** | `subtype` field in the master has malformed values (`null`, `None`, `language`, free-text notes) | Data Pipeline | 🟡 Medium | Open |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
 *ISSUE-008+ come from the 2026-07-13 full-repo codebase audit — see the "Codebase Audit" section below. Severity key adds 🔵 Low.*
@@ -831,6 +832,27 @@ start at rather than pushing at every size.
 
 ---
 
+## Data Pipeline Findings
+
+### ISSUE-030: The `subtype` field in the master CSV has malformed values
+**Severity: Medium.** **Discovered 2026-07-14** during the Stage-1 ingest of the
+retrieval pipeline (`pipeline/ingest.py`). The master has **116** distinct
+(type, subtype) pairs, but among the pairs that appear exactly once are clearly
+malformed subtype values, e.g.: `L/null`, `V/None`, `T/T`, `L/language`, and
+`P/PD FaceBook post 11/15/16` (a free-text note stuffed into the subtype column).
+These can't be validated authoritatively because the workspace's
+`Categories of SubFederal Laws.md` (the definitive type/subtype taxonomy) is
+missing (already noted in the Asset Inventory gaps) — so the pipeline flags
+singleton pairs for review rather than hard-failing them. Full list in
+`pipeline/out/validation_report.md` ("Subtype pairs").
+
+**Why it matters:** subtype is part of the ICI taxonomy and will become a tool
+argument / metadata filter in Stages 2–5; garbage values will surface in
+`aggregate_laws(group_by="subtype")` and in retrieval metadata. **Fix:** obtain
+`Categories of SubFederal Laws.md`, validate every (type, subtype) pair against
+it, and correct the handful of malformed rows at the source (they're few). Until
+then they're kept and flagged, not dropped.
+
 ## Changelog
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit
@@ -887,3 +909,15 @@ start at rather than pushing at every size.
   `CLAUDE.md` to match the shipped React app, real data shape/counts, and the
   real pipeline; both now point at ISSUES.md + PIPELINEWORKFLOW.md as the entry
   point for the RAG work. Done ahead of starting the retrieval-pipeline effort.
+- **2026-07-14 (RAG pipeline Stages 1–2)** — Built the data foundation and
+  structured query tools per PIPELINEWORKFLOW.md (both stages now 🟢 there).
+  Stage 1 (`pipeline/ingest.py`): typed load of the 13,533-row master, state
+  normalization (fixes ISSUE-006 — D.C.→DC, territories/foreign/null flagged not
+  dropped), precomputed tier-weighted ICI aggregates (fixes ISSUE-002),
+  full-text join (543 bill texts + 1,011 MOAs), and two reports. Stage 2
+  (`pipeline/tools.py` + `server.py`): `filter_laws` / `aggregate_laws` /
+  `score_ici` / `get_law` over SQLite, wrapped in a FastAPI service with a CORS
+  allowlist (no wildcard — respects ISSUE-010) and JSONL query logging.
+  Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
+  pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
+  Stopped here for review before Stage 3 (embeddings).

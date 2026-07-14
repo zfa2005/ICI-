@@ -20,6 +20,15 @@ ici_chats.db-wal
 # only, never pushed. See ISSUES.md "Asset Inventory" / PIPELINEWORKFLOW.md.
 ici_workspace/
 
+# ── Python retrieval pipeline ─────────────────────────────────────────────────
+# Heavy/derived pipeline artifacts stay local: parquet, sqlite, chroma index,
+# eval + query logs. Code and small fixtures are tracked; out/ never is.
+pipeline/out/
+pipeline/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # ── Node.js ───────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*
