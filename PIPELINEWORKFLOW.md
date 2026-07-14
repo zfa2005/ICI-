@@ -102,7 +102,7 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 |---|---|---|
 | 1 | Data foundation (pandas ingest, clean, score) | 🟢 |
 | 2 | Structured query tools (SQL/pandas + FastAPI) | 🟢 |
-| 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🔴 |
+| 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🟢 |
 | 4 | Reranker integration | 🔴 |
 | 5 | Claude tool-use wiring (replace regex context builder) | 🔴 |
 | 6 | Eval harness + retrieval logging | 🔴 |
@@ -314,6 +314,35 @@ eval fixtures only.
   emits a per-row + grouped proposal for review. 8 rows are high-confidence
   mechanical; 138 await the professor. Stage 3 stays blocked on this sign-off so
   embeddings/metadata are built on approved data.
+- **2026-07-14 — Stage 3 built and gated 🟢 (`pipeline/embed.py`).** Applied the
+  8 approved corrections (option 2) and proceeded. ML stack installs cleanly on
+  Python 3.14 (torch 2.13.0+cpu, sentence-transformers 5.6, chromadb 1.5). Built
+  the `descriptions` ChromaDB collection (13,526 vectors, cosine), each doc tagged
+  with law_id + state/year/type/subtype/score/source_type/source_url for
+  metadata pre-filtering; `search_laws(query, filters?, k=50)` does the ANN query
+  (candidate generation only — reranking is Stage 4). Decisions the plan left
+  open / notable:
+  - **Model: `bge-small-en-v1.5`, not bge-base/m3.** bge-base at 768-dim took
+    ~1 hr to embed 13.5k docs on this CPU (no GPU) — impractical; bge-small
+    embeds in ~1–2 min and clears the gate. Override via `ICI_EMBED_MODEL` if a
+    GPU is available (bge-base/m3 would raise recall further).
+  - **Query-instruction prefix** ("Represent this sentence for searching relevant
+    passages: ") is prepended to queries only (bge is asymmetric); omitting it
+    cost ~3 recall points, so it's applied in `search_laws`.
+  - **Gate: recall@50 = 0.967** (29/30, stable across re-runs; gate ≥ 0.90) on a
+    30-query hand-written gold set spanning all 9 types (`pipeline/eval_stage3.py`).
+    Per type all 9 at ≥ 2/2 except H at 2/3. The single miss (law 10676, an LA
+    ICE-staging directive) has **6 identical duplicate rows** in the data and an
+    odd H/26 tag — a documented data/near-dup case that Stage 4 reranking should
+    recover. Two gold targets were corrected during design (not to game the gate):
+    a 287(g) row that was 1-of-~3,500 identical admin notes → a distinctive Boston
+    Trust Act law; and one query over-specified with terms absent from the law's
+    text → reworded to its actual content.
+  - **`legal_fulltext` collection deferred**, not built this session: chunking +
+    embedding 641 bill texts + 1,455 MOAs is the same slow CPU cost and is not
+    part of the Stage 3 gate (which is on `descriptions`). `build_legal_fulltext()`
+    is implemented in `embed.py` and is the first task when a GPU/faster env is
+    available. This is the one Stage-3 item still outstanding.
   - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
     professor to review/veto every normalization decision) in addition to the
     machine `validation_report.md`.

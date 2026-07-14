@@ -13,3 +13,9 @@ uvicorn>=0.29
 # the pytest suite and exercise the FastAPI endpoints via TestClient).
 pytest>=8.0
 httpx>=0.27
+
+# ── Stage 3 — embeddings + vector index ──────────────────────────────────────
+# Installs torch (CPU build), transformers, onnxruntime, scikit-learn as deps.
+# Verified on Python 3.14 (torch 2.13.0+cpu).
+sentence-transformers>=5.0
+chromadb>=1.5

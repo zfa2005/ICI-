@@ -56,8 +56,9 @@ def test_data_scores_match_taxonomy_points_for_valid_pairs():
 
 
 def test_subtype_problem_counts_are_bounded():
-    """The known ISSUE-030 rows: 121 wrong-type + 25 unknown = 146. If this grows,
-    a data regression slipped in; investigate rather than loosen."""
+    """Known ISSUE-030 rows after the 8 approved corrections: 121 wrong-type + 17
+    unknown = 138 (down from 146). If this grows, a regression slipped in;
+    investigate rather than loosen. The other 138 await the professor."""
     with sqlite3.connect(f"file:{C.SQLITE_PATH}?mode=ro", uri=True) as con:
         con.row_factory = sqlite3.Row
         rows = con.execute("SELECT type, subtype FROM laws").fetchall()
@@ -71,4 +72,4 @@ def test_subtype_problem_counts_are_bounded():
         elif not TX.is_valid_pair(r["type"], code):
             wrong_type += 1
     assert wrong_type == 121
-    assert unknown == 25
+    assert unknown == 17

@@ -964,6 +964,14 @@ ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-14 (RAG Stage 3 — embeddings)** — Applied the 8 approved subtype
+  corrections (derived data only), then built Stage 3: `pipeline/embed.py`
+  descriptions ChromaDB collection (13,526 vectors) + `search_laws`. ML stack
+  installs on Python 3.14. Gate **recall@50 = 0.967** (≥0.90) on a 30-query gold
+  set across all 9 types (`pipeline/eval_stage3.py`), stable across re-runs. Used
+  bge-small (bge-base was ~1 hr/embed on CPU — impractical here; override via
+  `ICI_EMBED_MODEL` on GPU). `legal_fulltext` collection deferred (same slow CPU
+  cost, not part of the gate). PIPELINEWORKFLOW.md Stage 3 → 🟢.
 - **2026-07-14 (taxonomy obtained)** — The authoritative "Categories of
   SubFederal Laws" doc was provided, closing the Asset Inventory gap. Added
   `pipeline/reference/Categories_of_SubFederal_Laws.md` (tracked) +

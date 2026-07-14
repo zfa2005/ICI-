@@ -56,6 +56,25 @@ LOG_DIR = OUT_DIR / "logs"
 VALIDATION_REPORT = OUT_DIR / "validation_report.md"
 DATA_QUALITY_REPORT = OUT_DIR / "data_quality_report.md"
 
+# ── Stage 3 — embeddings + vector index ─────────────────────────────────────
+# Default to bge-small-en-v1.5: strong retrieval, 384-dim, fast on CPU for ~13.5k
+# short docs (the doc's first choice bge-m3 is multilingual/heavier — override via
+# ICI_EMBED_MODEL if a GPU is available). Pairs with the bge reranker in Stage 4.
+EMBED_MODEL = os.environ.get("ICI_EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+# bge v1.5 is asymmetric: the QUERY is prefixed with a retrieval instruction,
+# the passages are not. Omitting this measurably hurts recall. (Empty for models
+# that don't use it.)
+QUERY_INSTRUCTION = os.environ.get(
+    "ICI_QUERY_INSTRUCTION",
+    "Represent this sentence for searching relevant passages: ",
+)
+CHROMA_DIR = OUT_DIR / "chroma"
+COLLECTION_DESCRIPTIONS = "descriptions"
+COLLECTION_LEGAL = "legal_fulltext"
+# Full-text chunking (word-based approximation of ~500–800 tokens w/ overlap).
+CHUNK_WORDS = 450
+CHUNK_OVERLAP_WORDS = 80
+
 # ── CORS (mirror server.js ALLOWED_ORIGINS approach — never a wildcard) ──────
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
