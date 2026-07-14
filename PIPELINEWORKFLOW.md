@@ -285,10 +285,24 @@ eval fixtures only.
     plan's "263 direct" figure counted the other direction (files matching a
     master id); both are correct, they measure different things.
   - **Subtype validation is heuristic, not authoritative.** The workspace's
-    `Categories of SubFederal Laws.md` (the definitive 116-pair taxonomy) is
-    missing (noted in ISSUES.md gaps), so ingest validates `type ∈ taxonomy`
-    hard and reports the observed (type, subtype) pairs, flagging singletons for
-    review. This surfaced malformed subtypes → logged as **ISSUE-030**.
+    `Categories of SubFederal Laws.md` (the definitive taxonomy) is missing
+    (noted in ISSUES.md gaps), so ingest validates `type ∈ taxonomy` hard and
+    reports the observed (type, subtype) pairs, flagging singletons for review.
+    This surfaced malformed subtypes → logged as **ISSUE-030**.
+    _(Superseded 2026-07-14 — see next entry.)_
+- **2026-07-14 — Taxonomy obtained; subtype validation is now authoritative.**
+  The "Categories of SubFederal Laws" doc (current 2025-03-13) was provided,
+  closing the Asset Inventory gap. Encoded machine-readably in
+  `pipeline/taxonomy.py` (76 globally-unique subtype codes across 9 types, with
+  the documented point overrides B/12,14→1 and E/18,19,20,21,62→2); human doc
+  tracked at `pipeline/reference/Categories_of_SubFederal_Laws.md`. `ingest.py`
+  now validates each (type, subtype) pair against it and checks |score| ==
+  documented points. Findings (of 13,533): 13,387 valid, **121** subtype codes
+  under the wrong type, **25** off-list values (ISSUE-030, itemized in the
+  validation report), and **0** score/points disagreements — the taxonomy's
+  weights fully match the data's scores, which independently validates both.
+  Encoding it in the repo (not just reading the gitignored workspace md) keeps
+  validation reproducible from a clean clone.
   - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
     professor to review/veto every normalization decision) in addition to the
     machine `validation_report.md`.

@@ -27,6 +27,7 @@ from datetime import date, datetime, timezone
 import pandas as pd
 
 import config as C
+import taxonomy as TX
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,13 +195,45 @@ def validate(df: pd.DataFrame) -> dict:
     v["source_type_invalid"] = df[~df["source_type"].str.strip().isin(list(C.VALID_SOURCE_TYPES))]["law_id"].tolist()
     v["source_invalid"] = df[~df["source"].str.strip().isin(list(C.VALID_SOURCES))]["law_id"].tolist()
 
-    # subtype: the authoritative taxonomy doc (Categories of SubFederal Laws.md)
-    # is missing from the workspace (see ISSUES.md gaps), so we cannot hard-
-    # validate (type, subtype) pairs against an external list. Instead we record
-    # the observed pairs and flag singletons (appear exactly once) for review.
-    pairs = Counter(zip(df["type"].str.strip(), df["subtype"].str.strip()))
-    v["_subtype_pairs"] = pairs
-    v["subtype_singletons"] = [f"{t}/{s or '∅'}" for (t, s), n in pairs.items() if n == 1]
+    # subtype: validated authoritatively against the taxonomy in taxonomy.py
+    # (encoded from "Categories of SubFederal Laws", now obtained — ISSUE-030).
+    # Subtype codes are globally unique, so a code paired with the wrong type is
+    # a real error (e.g. B/2 — subtype 2 "Secure Communities" is a P code).
+    type_up = df["type"].str.strip().str.upper()
+    sub_norm = df["subtype"].map(TX.normalize_subtype)          # '13.0' -> '13'; junk kept
+    belongs = sub_norm.map(lambda s: TX.SUBTYPES[s][0] if s in TX.SUBTYPES else None)
+
+    is_blank = sub_norm == ""
+    is_known = sub_norm.isin(list(TX.SUBTYPES))
+    is_mismatch = is_known & (belongs != type_up)              # known code, wrong type
+    is_unknown = (~is_blank) & (~is_known)                     # 'null','language','T' …
+    is_valid_pair = is_known & (belongs == type_up)
+
+    v["subtype_blank"] = df[is_blank]["law_id"].tolist()
+    v["subtype_type_mismatch"] = df[is_mismatch]["law_id"].tolist()
+    v["subtype_unknown_value"] = df[is_unknown]["law_id"].tolist()
+
+    # |score| should equal the subtype's documented points (base or override),
+    # but only for rows whose (type, subtype) pair is itself valid. Done on plain
+    # float arrays to sidestep nullable-NA comparison ambiguity (pandas 3.0).
+    import numpy as np
+    exp_arr = sub_norm.map(
+        lambda s: TX.SUBTYPES[s][1] if s in TX.SUBTYPES else float("nan")
+    ).to_numpy(dtype="float64")
+    score_arr = pd.to_numeric(df["score"], errors="coerce").to_numpy(dtype="float64")
+    valid_arr = is_valid_pair.to_numpy(dtype=bool)
+    pts_mismatch = valid_arr & ~np.isnan(score_arr) & ~np.isnan(exp_arr) & (np.abs(score_arr) != exp_arr)
+    v["subtype_points_mismatch"] = df.loc[pts_mismatch, "law_id"].tolist()
+
+    # reporting aids
+    v["_n_valid_pairs"] = int(is_valid_pair.sum())
+    v["_subtype_mismatch_examples"] = sorted({
+        f"{t}/{s} (code {s} is a {TX.SUBTYPES[s][0]} type)"
+        for t, s in zip(type_up[is_mismatch], sub_norm[is_mismatch])
+    })
+    v["_subtype_unknown_values"] = sorted({
+        repr(x) for x in df[is_unknown]["subtype"].str.strip()
+    })
 
     return v
 
@@ -410,12 +443,21 @@ def write_validation_report(df, v, load_notes, agg_meta, ft_stats):
     for k in soft:
         L.append(f"| {labels_soft[k]} | {len(v[k])} | {_sample(v[k]) or '—'} |")
 
-    L.append("\n## Subtype pairs\n")
-    L.append(f"- Distinct (type, subtype) pairs observed: **{len(v['_subtype_pairs'])}** "
-             "(the workspace's authoritative `Categories of SubFederal Laws.md` is missing, "
-             "so pairs are validated against the data itself — see the Decision log).")
-    L.append(f"- Singleton pairs (appear once — review for typos): "
-             f"{', '.join(v['subtype_singletons']) or 'none'}\n")
+    L.append("\n## Subtype validation (authoritative — taxonomy.py / "
+             "Categories of SubFederal Laws)\n")
+    L.append(f"- Rows with a valid (type, subtype) pair: **{v['_n_valid_pairs']:,}**")
+    L.append(f"- Blank subtype: **{len(v['subtype_blank'])}**")
+    L.append(f"- **Subtype code paired with the wrong type: {len(v['subtype_type_mismatch'])}** "
+             f"(law_ids: {_sample(v['subtype_type_mismatch']) or '—'})")
+    if v["_subtype_mismatch_examples"]:
+        L.append("  - distinct mismatches: " + "; ".join(v["_subtype_mismatch_examples"]))
+    L.append(f"- **Unknown subtype value (not in taxonomy): {len(v['subtype_unknown_value'])}** "
+             f"(law_ids: {_sample(v['subtype_unknown_value']) or '—'})")
+    if v["_subtype_unknown_values"]:
+        L.append("  - distinct values: " + ", ".join(v["_subtype_unknown_values"]))
+    L.append(f"- Score |points| disagrees with the subtype's documented points: "
+             f"**{len(v['subtype_points_mismatch'])}** (soft — subtype overrides make some "
+             f"legitimate; law_ids: {_sample(v['subtype_points_mismatch']) or '—'})\n")
 
     L.append("## Aggregates\n")
     L.append(f"- Rows contributing to ICI aggregates (have state + year + score): "
@@ -498,6 +540,23 @@ def write_data_quality_report(df, v, state_changes, agg_meta, ft_stats):
         L.append("> **Good news:** none of the serious consistency problems (mismatched scores, "
                  "out-of-range weights, unknown types) were found. The scoring data is internally "
                  "consistent.\n")
+
+    L.append("## 3b. Law sub-category (subtype) problems — now checkable\n")
+    L.append("We now have the official 'Categories of SubFederal Laws' list, so every law's "
+             "sub-category number can be checked against it. Each number belongs to exactly one "
+             "category, so a number used under the wrong category is an error.")
+    L.append("| What | How many | Meaning |")
+    L.append("|---|---|---|")
+    L.append(f"| Sub-category under the wrong category | {len(v['subtype_type_mismatch'])} | "
+             "e.g. a law marked Benefits but using a Police sub-category number. |")
+    L.append(f"| Sub-category value not on the official list | {len(v['subtype_unknown_value'])} | "
+             "e.g. the words 'null', 'language', or a stray note in that field. |")
+    L.append(f"| Blank sub-category | {len(v['subtype_blank'])} | No sub-category recorded. |")
+    if v["_subtype_unknown_values"]:
+        L.append("")
+        L.append("The off-list values found were: " + ", ".join(v["_subtype_unknown_values"]) + ".")
+    L.append("\nThese rows are **kept and flagged**, not deleted. They are a small share of the "
+             "database and are worth a quick manual correction at the source (tracked as ISSUE-030).\n")
 
     L.append("## 4. The ICI score is now computed correctly\n")
     L.append("The whole point of the index — adding up the signed tier weights per place and year "

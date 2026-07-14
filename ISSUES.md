@@ -49,7 +49,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
 | **ISSUE-028** | Git hygiene & misc (`.DS_Store` tracked, dead deps, CDN SRI, repo URLs, licensing) | Maintenance | 🔵 Low | 🟡 Partly fixed |
 | **ISSUE-029** | Assistant: opening the Chats sidebar overlays the chat instead of shifting it right | Frontend / UX | 🔵 Low | Open |
-| **ISSUE-030** | `subtype` field in the master has malformed values (`null`, `None`, `language`, free-text notes) | Data Pipeline | 🟡 Medium | Open |
+| **ISSUE-030** | `subtype` field in the master has malformed values (`null`, `None`, `language`, wrong-type codes) | Data Pipeline | 🟡 Medium | 🟡 Validated (source fix pending) |
 
 *(IDs below are not deep-links — this file is short enough to scroll or Ctrl+F.)*
 *ISSUE-008+ come from the 2026-07-13 full-repo codebase audit — see the "Codebase Audit" section below. Severity key adds 🔵 Low.*
@@ -417,9 +417,13 @@ marketing copy says 2005–2020, which undersells the corpus.
 
 ### Gaps found while inventorying
 
-- `Categories of SubFederal Laws.md` (the full taxonomy doc) is referenced
-  by the audit methodology but missing from this workspace copy — needed for
-  the definitive subtype table (116 pairs exist in-data; the doc defines them).
+- ~~`Categories of SubFederal Laws.md` (the full taxonomy doc) is referenced
+  by the audit methodology but missing from this workspace copy~~ **— RESOLVED
+  2026-07-14.** The doc was provided; it now lives at
+  `pipeline/reference/Categories_of_SubFederal_Laws.md` (tracked) + the workspace
+  copy, and is encoded in `pipeline/taxonomy.py` for validation. It defines 76
+  subtype codes across the 9 types (globally unique, with point overrides). See
+  ISSUE-030 for the resulting validation.
 - The merge/pipeline scripts the README references (`scripts/merge_*.py`,
   `agents/parse_*.py`, `scripts/build_ici_master.py`) are not in this copy —
   we can rebuild aggregations ourselves in pandas, but the originals would
@@ -853,6 +857,26 @@ argument / metadata filter in Stages 2–5; garbage values will surface in
 it, and correct the handful of malformed rows at the source (they're few). Until
 then they're kept and flagged, not dropped.
 
+**🟡 Validated 2026-07-14 (taxonomy obtained).** The authoritative
+"Categories of SubFederal Laws" doc was provided and is now in the repo
+(`pipeline/reference/Categories_of_SubFederal_Laws.md`) and encoded machine-
+readably in `pipeline/taxonomy.py` (76 subtype codes; codes are globally unique;
+point overrides B/12,14→1 and E/18,19,20,21,62→2 captured). `ingest.py` now
+validates every (type, subtype) pair against it. **Precise picture (of 13,533):**
+- **13,387** rows have a valid pair; **0** blank.
+- **121** rows use a subtype code under the *wrong* type — real errors now caught,
+  e.g. `B/2` (2 = Secure Communities is a P code), `E/13` (13 = Drivers Licenses
+  is a D code), `W/10` (10 = Education is a B code). 31 distinct mismatches.
+- **25** rows have an off-list value: `'null'`, `'None'`, `'language'`, `'Vote'`,
+  `'el'`, `'L'`, `'T'`, `'V'`, `'PD FaceBook post 11/15/16'`.
+- **0** rows where |score| disagrees with the subtype's documented points — i.e.
+  the scoring is fully consistent with the taxonomy (validates both the encoding
+  and the data's weights).
+Full itemized law_ids in `pipeline/out/validation_report.md`; regression-locked
+in `pipeline/tests/test_taxonomy.py`. **Remaining:** the 146 flagged rows still
+need correcting at the source (they're kept and flagged, never dropped) — a
+professor/data-owner task, not a code change.
+
 ## Changelog
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit
@@ -921,3 +945,11 @@ then they're kept and flagged, not dropped.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-14 (taxonomy obtained)** — The authoritative "Categories of
+  SubFederal Laws" doc was provided, closing the Asset Inventory gap. Added
+  `pipeline/reference/Categories_of_SubFederal_Laws.md` (tracked) +
+  `pipeline/taxonomy.py` (machine-readable), rewired `ingest.py` to validate
+  subtypes authoritatively, and added `pipeline/tests/test_taxonomy.py` (31 tests
+  total pass). Result: 13,387 valid pairs, 121 wrong-type codes + 25 off-list
+  values flagged (ISSUE-030, now precisely itemized), and 0 score/points
+  mismatches — the taxonomy point-weights fully agree with the data.
