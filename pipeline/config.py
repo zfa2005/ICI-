@@ -42,6 +42,12 @@ STATE_LAW_TEXTS_DIR = WORKSPACE_ROOT / "state_law_texts"
 FULLTEXT_287G_CSV = WORKSPACE_ROOT / "data" / "287g_fulltext.csv"
 AUDIT_SAMPLE_CSV = WORKSPACE_ROOT / "data" / "ici_master" / "audit_sample.csv"
 
+# ── Corrections (reviewed, non-destructive) ──────────────────────────────────
+# Approved (type, subtype) corrections applied to the DERIVED tables at ingest
+# time. The canonical ici_master.csv is never edited — this file is the auditable
+# record of every change, reviewable/vetoable by the data owner (ISSUE-030).
+CORRECTIONS_CSV = PIPELINE_DIR / "corrections.csv"
+
 # ── Outputs (all gitignored) ─────────────────────────────────────────────────
 OUT_DIR = _env_path("ICI_OUT", PIPELINE_DIR / "out")
 PARQUET_PATH = OUT_DIR / "ici.parquet"

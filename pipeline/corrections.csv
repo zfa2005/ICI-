@@ -1,0 +1,18 @@
+# ICI subtype/type corrections — APPROVED changes only (ISSUE-030).
+#
+# These are applied to the DERIVED tables (parquet/sqlite) at ingest time; the
+# canonical ici_master.csv is NEVER edited. This file is the auditable record of
+# every correction, and is meant to be reviewed/vetoed by the data owner.
+#
+# Populate ONE row per law that the professor has approved a fix for. Leave a
+# cell blank to keep that field unchanged. Then re-run `python pipeline/ingest.py`.
+#   law_id      = the pipeline row id (see pipeline/out/corrections_proposed.csv)
+#   set_type    = corrected type letter (P/B/D/E/L/H/W/V/T), or blank
+#   set_subtype = corrected subtype code, or blank
+#   reason      = short justification (who approved / why)
+#
+# Currently EMPTY: no corrections have been approved yet. The full proposed set
+# is in pipeline/out/corrections_proposed.csv, awaiting the professor's review —
+# the 146 flagged rows are systematic classification calls (e.g. 36x B/13,
+# 22x P/58, 16x P/54), which are the authors' decision, not the pipeline's.
+law_id,set_type,set_subtype,reason

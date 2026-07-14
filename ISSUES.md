@@ -877,6 +877,25 @@ in `pipeline/tests/test_taxonomy.py`. **Remaining:** the 146 flagged rows still
 need correcting at the source (they're kept and flagged, never dropped) — a
 professor/data-owner task, not a code change.
 
+**🟡 Correction proposal prepared 2026-07-14 (awaiting professor decision).**
+Investigating the 146 rows showed the "fix" is a research-classification call,
+not a mechanical replace: the score magnitude confirms the *type* is usually
+right and the *subtype* is off, and the errors are **systematic** — 36× `B/13`,
+22× `P/58`, 16× `P/54`, 13× `L/L` — i.e. likely intentional classifications or a
+pipeline-wide choice, which is the authors' decision. So the pipeline now ships:
+- a **non-destructive corrections layer** — `pipeline/corrections.csv` (approved
+  fixes only) applied to the derived parquet/sqlite at ingest; the canonical
+  `ici_master.csv` is never edited (`apply_corrections` in `ingest.py`);
+- a **reviewable proposal** — `python pipeline/propose_corrections.py` writes
+  `pipeline/out/corrections_proposed.csv` (per-row: current value, description,
+  score-based hint on which field is wrong, suggested fix, confidence) and
+  `corrections_review.md` (grouped by pattern for one-decision-each sign-off).
+Only **8** rows are high-confidence mechanical (placeholder subtype + type
+already right + one obvious code, e.g. `V/Vote`→`V/32`, `T/T`→`T/66`); the other
+**138** need the professor's classification. **Nothing has been applied** —
+`corrections.csv` is empty pending review. Once approved, populate it and re-run
+ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
+
 ## Changelog
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit

@@ -72,6 +72,36 @@ def _to_int(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series.str.strip().replace("", pd.NA), errors="coerce").astype("Int64")
 
 
+def apply_corrections(df: pd.DataFrame) -> dict:
+    """Apply the data owner's APPROVED (type, subtype) corrections to the derived
+    table only — the canonical CSV is never modified. corrections.csv columns:
+    law_id, set_type, set_subtype, reason (blank cells leave a field unchanged).
+    Returns an audit summary. No-op if the file has no data rows (ISSUE-030)."""
+    info = {"applied": 0, "rows": []}
+    if not C.CORRECTIONS_CSV.exists():
+        return info
+    corr = pd.read_csv(C.CORRECTIONS_CSV, dtype=str, keep_default_na=False,
+                       na_values=[], comment="#")
+    corr = corr[corr["law_id"].str.strip() != ""]
+    if corr.empty:
+        return info
+    by_id = {int(r["law_id"]): r for _, r in corr.iterrows()}
+    for law_id, r in by_id.items():
+        mask = df["law_id"] == law_id
+        if not mask.any():
+            continue
+        before = df.loc[mask, ["type", "subtype"]].iloc[0].to_dict()
+        if r.get("set_type", "").strip():
+            df.loc[mask, "type"] = r["set_type"].strip().upper()
+        if r.get("set_subtype", "").strip():
+            df.loc[mask, "subtype"] = r["set_subtype"].strip()
+        info["applied"] += 1
+        info["rows"].append({"law_id": law_id, "before": before,
+                             "after": df.loc[mask, ["type", "subtype"]].iloc[0].to_dict(),
+                             "reason": r.get("reason", "")})
+    return info
+
+
 def enforce_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     df["year"] = _to_int(df["year_enacted"]).astype("Int64")
     df["year_revoked"] = _to_int(df["year_revoked"]).astype("Int64")
@@ -593,6 +623,11 @@ def main():
     print(f"output dir : {C.OUT_DIR}")
 
     df, load_notes = load_master()
+    corr_info = apply_corrections(df)
+    load_notes["corrections_applied"] = corr_info["applied"]
+    if corr_info["applied"]:
+        print(f"corrections : applied {corr_info['applied']} approved (type,subtype) fix(es) "
+              f"to the derived data (source CSV untouched)")
     df = enforce_dtypes(df)
     df, state_changes = apply_state_norm(df)
     df = apply_locality_norm(df)

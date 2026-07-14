@@ -303,6 +303,17 @@ eval fixtures only.
   weights fully match the data's scores, which independently validates both.
   Encoding it in the repo (not just reading the gitignored workspace md) keeps
   validation reproducible from a clean clone.
+- **2026-07-14 — Data-cleaning gate before Stage 3 (corrections are the authors'
+  call).** Chose to clean the 146 subtype-flagged rows before embedding.
+  Investigation showed the fixes are research classifications, not typos — errors
+  are systematic (36× B/13, 22× P/58, 16× P/54, 13× L/L) and the score magnitude
+  shows the type is usually right / the subtype off. **Design decision:** the
+  pipeline does NOT edit the canonical CSV. Instead `ingest.py` applies an
+  approved `pipeline/corrections.csv` (empty until sign-off) to the derived
+  tables only — auditable and reversible — and `pipeline/propose_corrections.py`
+  emits a per-row + grouped proposal for review. 8 rows are high-confidence
+  mechanical; 138 await the professor. Stage 3 stays blocked on this sign-off so
+  embeddings/metadata are built on approved data.
   - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
     professor to review/veto every normalization decision) in addition to the
     machine `validation_report.md`.
