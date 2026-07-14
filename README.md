@@ -1,97 +1,115 @@
 # Immigrant Climate Index (ICI) — Research Platform
 
-An academic research tool that quantifies the "climate" for immigrants across U.S. jurisdictions by cataloguing and scoring sub-federal immigration legislation from 2005 to 2020.
+An academic research tool that quantifies the regulation-induced "climate" for
+immigrants across U.S. jurisdictions by cataloguing and scoring sub-federal
+immigration legislation at the federal, state, county, and city levels.
 
 **Authors:** Huyen Pham (Texas A&M University School of Law) · Pham Hoang Van (Baylor University)
+
+**Live site:** https://zfa2005.github.io/ICI-/
 
 ---
 
 ## What This Project Is
 
-The ICI assigns a numerical score to every state, county, and city in the United States based on the immigration laws active in that jurisdiction. A positive score means the local legislative environment is pro-immigrant; a negative score means it is restrictive. The scores are built from a database of **13,524 laws** catalogued by type, direction, tier weight, and year of enactment.
+The ICI assigns a numerical score to jurisdictions based on the immigration laws
+active there. A positive score means a pro-immigrant legislative environment; a
+negative score means a restrictive one. Scores are built from a database of
+**13,524 laws** (state, local, and 287(g) agreements) catalogued by type,
+direction, tier weight, and year of enactment, spanning **1974–2026**.
 
 This repository contains:
-- The full research publication (static HTML)
-- An interactive data explorer with filters, charts, and CSV export
-- An AI research assistant powered by Claude that can answer natural-language questions about the database
-- A Node.js backend that proxies API calls and persists chat history
+
+- **A React single-page app** (`frontend/`) — the public site: landing page,
+  team, contact, an interactive **Data Explorer**, and an **AI Research
+  Assistant**. This is what is deployed to GitHub Pages.
+- **A Node.js backend** (`server.js`, `api/chat.js`) — proxies chat requests to
+  the Anthropic Claude API (keeping the key server-side) and persists chat
+  history in SQLite.
+- **A Python data pipeline** (`scripts/convert_to_json.py`) — builds the app's
+  `ici_data.json` from the research master CSV.
+- **The research publication** — a Pandoc-generated HTML paper, served at
+  `/research.html`.
+
+> **Note:** the earlier standalone `src/pages/*.html` version of the app has been
+> removed — the single front-end is now the React app under `frontend/`.
+
+---
+
+## Repository Structure
+
+```
+ICI-/
+├── frontend/                       # React + Vite single-page app (the deployed site)
+│   ├── src/
+│   │   ├── App.jsx                 # Routes: / /team /contact /chatbot /assistant
+│   │   ├── main.jsx
+│   │   ├── pages/
+│   │   │   ├── Home.jsx            # Landing page
+│   │   │   ├── Team.jsx
+│   │   │   ├── Contact.jsx         # Demo / enquiry form
+│   │   │   ├── DataExplorer.jsx    # Keyword query engine + Chart.js (offline-capable)
+│   │   │   └── Assistant.jsx       # AI Research Assistant (needs the backend)
+│   │   ├── components/             # Nav, Footer, Layout, StatCounter, …
+│   │   ├── lib/usStates.js         # Single source for US state name↔code maps
+│   │   └── hooks/  utils/  styles/
+│   ├── public/
+│   │   ├── data/ici_data.json      # THE canonical law database (~6.2 MB) — served client-side
+│   │   └── research.html           # Research publication (Pandoc HTML)
+│   └── vite.config.js              # Dev server proxies /api → localhost:3000
+│
+├── server.js                       # Node backend: /api proxy + SQLite + serves frontend/dist
+├── api/chat.js                     # Serverless variant of the chat proxy (Vercel/Netlify)
+├── scripts/convert_to_json.py      # Regenerates frontend/public/data/ici_data.json from the master CSV
+│
+├── data/source/                    # Legacy Excel sources (2005–2020) — superseded by the master CSV
+├── ici_workspace/                  # ~1.9 GB local-only research workspace (gitignored) — RAG source assets
+├── research/index.html             # Source copy of the Pandoc paper
+├── db/                             # Runtime SQLite (auto-created, gitignored)
+│
+├── ISSUES.md                       # Issue & improvement tracker (incl. the RAG rebuild plan)
+├── PIPELINEWORKFLOW.md             # Build plan for the Python retrieval pipeline
+├── CLAUDE.md                       # Guide for AI coding assistants
+└── .github/workflows/deploy-pages.yml
+```
 
 ---
 
 ## Quick Start
 
-### Option A — Research paper (no setup)
+### Run the site (front-end only)
 
-Open `home.html` or `index.html` directly in a browser. No server or API key required.
-
-### Option B — Full AI Assistant
-
-The AI chat feature requires an API key and a running server.
-
-**1. Install the one server-side dependency:**
 ```bash
-npm install
+cd frontend
+npm install        # first time only
+npm run dev        # → http://localhost:5173
 ```
 
-**2. Create a `.env` file in the project root:**
-```
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-```
+This gives you the landing page, team, contact, and the Data Explorer with
+hot-reload. The Data Explorer works entirely client-side against
+`public/data/ici_data.json` — no backend or API key needed.
 
-**3. Start the server:**
+### Run the full app (with the AI Assistant)
+
+The AI chat needs the backend running too. In a second terminal:
+
 ```bash
-npm start
+# repo root
+npm install                    # first time only (installs better-sqlite3)
+echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" > .env
+npm start                      # → backend on http://localhost:3000
 ```
 
-**4. Open your browser:**
-```
-http://localhost:3000
-```
+The Vite dev server proxies `/api` to this backend, so the assistant's chat and
+history work. Without a valid `ANTHROPIC_API_KEY` the UI loads but chat replies
+return an error.
 
----
+### Preview the production build
 
-## File Structure
-
-```
-Immigrant-Climate/
-│
-├── src/
-│   └── pages/                          # Frontend — all HTML pages
-│       ├── home.html                   # Landing page (entry point)
-│       ├── team.html                   # Research team profiles
-│       ├── contact.html                # Contact / request-a-demo form
-│       ├── chatbot-ai.html             # AI Research Assistant (requires server)
-│       └── chatbot.html               # Data Explorer (offline-capable)
-│
-├── data/
-│   ├── ici_data.json                   # Processed JSON export of both databases (~1.7 MB)
-│   │                                   # Loaded client-side; regenerate if Excel data changes
-│   └── source/                         # Raw source files — do not modify directly
-│       ├── ACTIVE State_Legislation_Database.xlsx   # State-level laws 2005–2026
-│       └── ACTIVE_Local_Legislation_Database.xlsx   # City/county laws
-│
-├── research/
-│   └── index.html                      # Full research publication (Pandoc-generated, ~1.7 MB)
-│
-├── scripts/
-│   └── convert_to_json.py              # Regenerates ici_data.json from Excel source files
-│
-├── api/
-│   └── chat.js                         # Serverless function handler (Vercel / Netlify)
-│
-├── db/                                 # Runtime database — auto-created, gitignored
-│   └── ici_chats.db                    # SQLite: chat sessions + message history
-│
-├── server.js                           # Node.js development server:
-│                                       #   - Proxies requests to the Anthropic Claude API
-│                                       #   - Persists chat history in db/ici_chats.db
-│                                       #   - Serves src/pages/, data/, and research/
-│
-├── .env                                # Local secrets — NOT committed (gitignored)
-├── package.json                        # npm manifest — one dependency: better-sqlite3
-├── .gitignore
-├── README.md
-└── CLAUDE.md                           # Guidelines for AI coding assistants
+```bash
+cd frontend && npm run build   # emits frontend/dist
+# repo root:
+npm start                      # server.js serves frontend/dist → http://localhost:3000
 ```
 
 ---
@@ -99,181 +117,132 @@ Immigrant-Climate/
 ## Architecture
 
 ```
-Browser
+Browser (React SPA)
   │
-  ├── src/pages/chatbot.html    ──► data/ici_data.json   (direct fetch, no server)
+  ├── /chatbot  (Data Explorer) ──► public/data/ici_data.json     (direct fetch, no server)
   │
-  ├── src/pages/chatbot-ai.html
-  │     │
-  │     ├── GET  /api/chats        ────────────────────► SQLite (db/ici_chats.db)
-  │     ├── POST /api/chats
-  │     ├── GET  /api/chats/:id
-  │     ├── PATCH/DELETE /api/chats/:id
-  │     │
-  │     └── POST /api/chat  ──► server.js ──► Anthropic API (Claude Sonnet)
-  │                                    └──► SQLite (persist messages)
+  ├── /assistant (AI Assistant)
+  │     ├── GET/POST/PATCH/DELETE /api/chats*  ─► server.js ─► SQLite (db/ici_chats.db)
+  │     └── POST /api/chat  ─► server.js ─► Anthropic API (Claude Sonnet)
+  │                                    └─► SQLite (persist messages)
   │
-  └── Static assets served by server.js from:
-        ├── src/pages/    (HTML pages)
-        ├── data/         (ici_data.json)
-        └── research/     (index.html)
+  └── Production hosting: GitHub Pages serves the built frontend/dist
+      (Actions workflow builds with --base=/ICI-/). The backend is a
+      separate host — see ISSUE-008 in ISSUES.md.
 ```
 
-### Why is the API call server-side?
-
-The Anthropic API requires an `x-api-key` header. If `chatbot-ai.html` called the API directly from the browser, the key would be visible to anyone opening DevTools. The server acts as a thin proxy: it receives the conversation from the browser, appends the key, forwards to Anthropic, and returns the response. The key never reaches the client.
-
----
-
-## The Two Interfaces
-
-### `chatbot.html` — Data Explorer
-
-A keyword-matching query engine built entirely in client-side JavaScript. It parses the user's natural-language input using regular expressions and keyword detection to route to one of several pre-defined data views:
-
-| Query pattern detected | What it shows |
-|---|---|
-| State name or 2-letter code | All laws for that state, grouped by year |
-| Year + keyword ("laws in 2017") | All laws for that year, grouped by state |
-| "trump", "spike", "2017 effect" | Pre/post 2017 comparison |
-| "compare X and Y" | Side-by-side line chart for two states |
-| "by type", "breakdown" | Stacked bar chart across all law categories |
-| "trend", "over time" | Multi-series line chart: state vs local, pos vs neg |
-| "sanctuary", "friendly" | Positive laws only |
-| "policing", "enforcement", "287" | Policing category only |
-| Anything else | Full database summary |
-
-This interface works without an API key or a running server. All filtering and charting runs in the browser against the local `ici_data.json` file.
-
-### `chatbot-ai.html` — AI Research Assistant
-
-A full conversational interface backed by Claude. Before every API call, the client pre-aggregates the relevant slice of the database (counts by year, by state, by type; sample rows; comparison data) and sends it as a JSON payload inside the system prompt. This means Claude always answers from the actual database numbers rather than from training-data approximations.
-
-Multi-turn conversation is maintained client-side as an array of `{ role, content }` objects that grows with each exchange. The server persists this to SQLite so conversations are recoverable across browser sessions.
-
----
-
-## API Endpoints
-
-All endpoints are served by `server.js` on port 3000.
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/chats` | List all chat sessions, newest first, with last-message preview |
-| `POST` | `/api/chats` | Create a new chat session; returns `{ id, name }` |
-| `GET` | `/api/chats/:id` | Fetch a chat and its full message history |
-| `PATCH` | `/api/chats/:id` | Rename a chat `{ name: "New name" }` |
-| `DELETE` | `/api/chats/:id` | Delete a chat and all its messages |
-| `POST` | `/api/chat` | Proxy a conversation turn to Claude; persist to SQLite |
-| `GET` | `/*` | Serve static files from the project root |
-
-### `POST /api/chat` — request body
-
-```json
-{
-  "messages": [
-    { "role": "system",    "content": "You are an expert on the ICI database. [data context]" },
-    { "role": "user",      "content": "What happened to legislation in 2017?" },
-    { "role": "assistant", "content": "In 2017, 1,418 laws were recorded..." },
-    { "role": "user",      "content": "Which states drove the spike?" }
-  ],
-  "chatId": "uuid-of-current-chat",
-  "newUserContent": "Which states drove the spike?"
-}
-```
-
-`newUserContent` is the raw text the user typed. It differs from the last `messages` entry because the client injects a large data-context payload into the last user message before sending. `newUserContent` is what actually gets stored in SQLite.
+**Why the API call is server-side:** the Anthropic API needs an `x-api-key`
+header. Calling it from the browser would expose the key in DevTools. `server.js`
+(and `api/chat.js`) proxy the request, add the key, and forward to Anthropic, so
+the key never reaches the client. Both enforce a CORS allowlist
+(`ALLOWED_ORIGINS`) and a per-IP rate limit on `/api/chat`.
 
 ---
 
 ## The ICI Data Format
 
-`ici_data.json` has three top-level arrays:
+`frontend/public/data/ici_data.json` is the single source of truth, loaded
+client-side. Shape:
 
 ```json
 {
-  "stateLaws":  [ /* 1,910 records */ ],
-  "localLaws":  [ /* 2,618 records */ ],
+  "stateLaws":  [ /* 3,458 records */ ],
+  "localLaws":  [ /* 6,575 records */ ],
   "laws287g":   [ /* 3,491 records */ ],
-  "typeMap":    { "B": "Benefits", "P": "Policing", ... },
-  "metadata":   { "yearRange": [2005, 2020], "states": ["AL", "AK", ...] }
+  "typeMap":    { "P": "Police/Enforcement", "B": "Benefits", ... },
+  "metadata":   { "totalCount": 13524, "yearRange": [1974, 2026], "states": ["AL", ...] }
 }
 ```
 
-Each law record:
+Each law record (fields absent when empty):
 
 ```json
 {
-  "year":        2017,
-  "state":       "CA",
-  "county":      "",
-  "city":        "San Francisco",
-  "type":        "P",
-  "posNeg":      1,
-  "tier":        3,
-  "description": "Ordinance prohibiting city resources from being used to enforce federal immigration law."
+  "year": 2017, "state": "CA", "county": "", "city": "San Francisco",
+  "type": "P", "subtype": "60", "posNeg": 1, "tier": "3",
+  "description": "…", "sourceUrl": "…", "source": "manual"
 }
 ```
 
 | Field | Values | Meaning |
 |---|---|---|
-| `posNeg` | `1` | Pro-immigrant / sanctuary law |
-| `posNeg` | `0` | Restrictive / enforcement law |
-| `tier` | `1–4` | Impact weight (see Scoring below) |
-| `type` | `B P E D H L T V W` | Law category (Benefits, Policing, Employment, etc.) |
+| `posNeg` | `1` / `0` | Pro-immigrant (sanctuary) / restrictive |
+| `tier` | `1–4` | Impact weight (signed by `posNeg`) |
+| `type` | `P B D E L H T V W` | Law category |
+| `source` | `manual` / `automated` / `both` | Provenance / confidence |
 
-### Scoring Methodology (ICI Tiers)
+### Scoring methodology (ICI tiers)
 
 | Tier | Points | Description |
 |---|---|---|
 | 4 | ±4 | Laws affecting many aspects of daily life — highest impact |
-| 3 | ±3 | Crucial aspects that are difficult to avoid or substitute |
+| 3 | ±3 | Crucial aspects, difficult to avoid or substitute |
 | 2 | ±2 | Important aspects for which alternatives exist |
 | 1 | ±1 | Less significant impacts (e.g., English-only declarations) |
 
-Positive values = pro-immigrant. Negative values = restrictive. Tier scores are aggregated at the jurisdiction level to produce the final ICI score.
+Positive values = pro-immigrant, negative = restrictive. Tier scores aggregate
+per jurisdiction to produce the final ICI score.
 
 ---
 
-## Updating the Data
+## Regenerating the Data
 
-If the source Excel files change, regenerate `ici_data.json`:
+`ici_data.json` is built from the research master CSV (`ici_master.csv`) by a
+stdlib-only Python script:
 
-```python
-import pandas as pd, json
-
-state_df = pd.read_excel('ACTIVE State_Legislation_Database.xlsx')
-local_df = pd.read_excel('ACTIVE_Local_Legislation_Database.xlsx')
-
-# Local sheet stores the actual year in the second column (Unnamed: 1)
-local_df = local_df.rename(columns={'Unnamed: 1': 'ActualYear'})
-
-# ... normalise column names, map posNeg, tier, etc. ...
-
-with open('ici_data.json', 'w') as f:
-    json.dump({ "stateLaws": state_records, "localLaws": local_records, ... }, f)
+```bash
+python scripts/convert_to_json.py
 ```
+
+- **Input:** `ici_workspace/data/ici_master/ici_master.csv` by default (the
+  workspace is a ~1.9 GB local-only asset, gitignored — see the Asset Inventory
+  in [ISSUES.md](ISSUES.md)). Override with the `ICI_MASTER_CSV` env var.
+- **Output:** `frontend/public/data/ici_data.json` (the one canonical copy Vite
+  serves and bundles into `dist`).
+
+No third-party Python packages are required (the script uses only `csv` / `json`
+from the standard library).
+
+---
+
+## The AI Research Assistant & the RAG Roadmap
+
+The Assistant currently pre-aggregates a relevant slice of `ici_data.json` client-side
+(counts by year/state/type, plus a small sample) and sends it in the system
+prompt so Claude answers from real numbers. This retrieval is **keyword-based**,
+not semantic — its limitations and the planned rebuild (structured tool-calling
++ semantic vector search + reranking over the full workspace corpus) are
+documented in **[ISSUES.md](ISSUES.md)** (ISSUE-001 through ISSUE-007, plus the
+Asset Inventory) and **[PIPELINEWORKFLOW.md](PIPELINEWORKFLOW.md)**. Start there
+for the retrieval work.
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology | Why |
-|---|---|---|
-| Research publication | Pandoc → HTML | Reproducible academic document from Markdown source |
-| Data explorer frontend | Vanilla JS + Chart.js | No build step; runs directly in any browser |
-| AI assistant frontend | Vanilla JS + marked (inline) | Same — keeps deployment as simple as opening a file |
-| Backend server | Node.js `http` module | Zero framework overhead; 6 routes don't need Express |
-| Chat persistence | SQLite via `better-sqlite3` | File-based, zero configuration, survives restarts |
-| AI model | Claude Sonnet (claude-sonnet-4-6) | Best balance of reasoning quality and response speed |
-| Title generation | Claude Haiku | Lightweight task; faster and cheaper than Sonnet |
-| Fonts | Inter (UI) + JetBrains Mono (code) | Inter is highly legible at small sizes; JM for tabular data |
+| Layer | Technology |
+|---|---|
+| Front-end | React 19 + Vite, React Router, Chart.js |
+| Backend | Node.js `http` module + `better-sqlite3` |
+| AI model | Claude Sonnet (`claude-sonnet-4-6`); titles via Claude Haiku |
+| Data pipeline | Python standard library (`csv`, `json`) |
+| Research paper | Pandoc → HTML |
+| Hosting | GitHub Pages (front-end); backend hosted separately |
+
+---
+
+## Project Status
+
+This platform is under active hardening. Known issues, fixes in progress, and the
+retrieval-pipeline plan are tracked in **[ISSUES.md](ISSUES.md)** — consult it
+before starting new work.
 
 ---
 
 ## Citation
 
-> Pham, Huyen & Pham Hoang Van. *The Immigrant Climate Index.* Texas A&M University School of Law & Baylor University (2024).
+> Pham, Huyen & Pham Hoang Van. *The Immigrant Climate Index.* Texas A&M
+> University School of Law & Baylor University (2024).
 
-- Prof. Huyen Pham — Texas A&M University School of Law
-- Prof. Pham Hoang Van — Baylor University Department of Economics
+- Prof. Huyen Pham — Texas A&M University School of Law — https://law.tamu.edu/
+- Prof. Pham Hoang Van — Baylor University Department of Economics — https://www.baylor.edu/

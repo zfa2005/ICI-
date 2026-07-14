@@ -43,7 +43,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-021** | Widespread null/missing fields only partly handled (164 null years, etc.) | Data / Frontend | 🟡 Medium | Open |
 | **ISSUE-022** | No loading / error / empty states; silent `catch {}` swallowing failures | Frontend / UX | 🟡 Medium | Open |
 | **ISSUE-023** | Hero stats hardcoded; "2005–2026 / 21 yrs" coverage label is wrong | Frontend / Accuracy | 🟡 Medium | 🟢 Verified |
-| **ISSUE-024** | README & CLAUDE.md materially outdated (wrong architecture, sizes, counts) | Docs | 🔵 Low | Open |
+| **ISSUE-024** | README & CLAUDE.md materially outdated (wrong architecture, sizes, counts) | Docs | 🔵 Low | 🟢 Fixed |
 | **ISSUE-025** | No automated tests anywhere | Testing | 🔵 Low | Open |
 | **ISSUE-026** | Data provenance (manual vs automated, source URLs) not surfaced in the UI | Data / Product | 🔵 Low | Open |
 | **ISSUE-027** | Observability is console-only; production failures go unnoticed | Backend / Ops | 🔵 Low | Open |
@@ -735,6 +735,14 @@ with a custom regex formatter, not marked); the pandas/Excel "Updating the
 Data" recipe doesn't match `convert_to_json.py`. `CLAUDE.md` is stale the same
 way. **Fix:** rewrite both to match the React app, real data shape, and real
 pipeline.
+**🟢 Fixed 2026-07-13:** rewrote both `README.md` and `CLAUDE.md` from scratch to
+describe the shipped app — the React/Vite front-end (routes, structure), the Node
+proxy + SQLite backend, the stdlib Python pipeline (reads
+`ici_workspace/.../ici_master.csv`, writes `frontend/public/data/ici_data.json`),
+the real data shape/counts (3,458 / 6,575 / 3,491 = 13,524; 1974–2026; ~6.2 MB),
+GitHub Pages deploy, and accurate dev/build/run commands. Both now point at
+ISSUES.md + PIPELINEWORKFLOW.md for the RAG work. All figures re-verified against
+`ici_data.json` before writing.
 
 ### ISSUE-025: No automated tests anywhere
 **Severity: Low** (structural risk). Zero test files; the root `package.json`
@@ -875,3 +883,7 @@ start at rather than pushing at every size.
 - **2026-07-13** — Logged ISSUE-029 (user-reported): opening the Assistant Chats
   sidebar overlays the chat instead of shifting it right, because the ≤900px
   media query forces `main-wrapper` `margin-left: 0` unconditionally.
+- **2026-07-13 (fix batch 3 — docs)** — ISSUE-024: rewrote `README.md` and
+  `CLAUDE.md` to match the shipped React app, real data shape/counts, and the
+  real pipeline; both now point at ISSUES.md + PIPELINEWORKFLOW.md as the entry
+  point for the RAG work. Done ahead of starting the retrieval-pipeline effort.
