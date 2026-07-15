@@ -207,7 +207,9 @@ def search_laws(query: str, filters: dict | None = None, k: int = 50,
             "law_id": res["metadatas"][0][i].get("law_id"),
             "distance": res["distances"][0][i],
             "metadata": res["metadatas"][0][i],
-            "text": res["documents"][0][i][:300],
+            # Full passage — the cross-encoder (Stage 4) scores on this, so it must
+            # not be truncated. Callers that only want a preview can slice it.
+            "text": res["documents"][0][i],
         })
     return out
 

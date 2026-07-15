@@ -75,6 +75,18 @@ COLLECTION_LEGAL = "legal_fulltext"
 CHUNK_WORDS = 450
 CHUNK_OVERLAP_WORDS = 80
 
+# ── Stage 4 — reranker ───────────────────────────────────────────────────────
+# Cross-encoder that re-scores the Stage-3 candidate set. bge-reranker-base pairs
+# with the bge embedder and is CPU-viable (it scores ~50 pairs per query, not the
+# whole corpus). Override via ICI_RERANK_MODEL (e.g. bge-reranker-v2-m3 on GPU).
+RERANK_MODEL = os.environ.get("ICI_RERANK_MODEL", "BAAI/bge-reranker-base")
+RERANK_CANDIDATES = 50   # how many Stage-3 candidates to rerank
+RERANK_TOP_K = 8         # how many to keep after reranking
+# Tiny metadata tie-breaker added to the (0–1 sigmoid) rerank score: prefer rows
+# two pipelines agreed on ('both') then manually-verified. Small enough to only
+# break near-ties, never to override a clearly better text match.
+SOURCE_TIEBREAK = {"both": 0.03, "manual": 0.02, "automated": 0.0}
+
 # ── CORS (mirror server.js ALLOWED_ORIGINS approach — never a wildcard) ──────
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",

@@ -103,7 +103,7 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 | 1 | Data foundation (pandas ingest, clean, score) | 🟢 |
 | 2 | Structured query tools (SQL/pandas + FastAPI) | 🟢 |
 | 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🟢 |
-| 4 | Reranker integration | 🔴 |
+| 4 | Reranker integration | 🟡 |
 | 5 | Claude tool-use wiring (replace regex context builder) | 🔴 |
 | 6 | Eval harness + retrieval logging | 🔴 |
 | 7 | Hardening: incremental refresh, CI checks, docs | 🔴 |
@@ -343,6 +343,31 @@ eval fixtures only.
     part of the Stage 3 gate (which is on `descriptions`). `build_legal_fulltext()`
     is implemented in `embed.py` and is the first task when a GPU/faster env is
     available. This is the one Stage-3 item still outstanding.
+- **2026-07-15 — Stage 4 built; accuracy gate NOT met on `descriptions` 🟡.**
+  `pipeline/rerank.py` (cross-encoder `bge-reranker-base` over the Stage-3 top-50,
+  0–1 sigmoid score + a small source-confidence tie-break) and
+  `pipeline/eval_stage4.py` are done and correct. But on the 30-query gold set the
+  reranker does **not** beat the no-rerank baseline: recall@8 0.767 → 0.700,
+  MRR@8 0.430 → 0.370.
+  **Root cause (diagnosed, not a bug):** the gold set labels a *single* target
+  law per query, but most queries have a **cluster of near-identical, equally
+  relevant laws** (e.g. ~10 Boston Trust Act rows; many DL proof-of-status laws;
+  several max-occupancy ordinances). The reranker correctly groups the whole
+  relevant cluster at the top — a diagnostic showed the reranked top-5 for each
+  query are all on-topic — but that can push the one arbitrarily-chosen target
+  out of the top-8. The bi-encoder baseline scored higher only because it happened
+  to rank those specific ids slightly better; it is not actually more relevant.
+  Reranking short atomic descriptions also has inherently low headroom (the
+  bi-encoder is already strong on them); cross-encoders earn their keep on the
+  long `legal_fulltext` passages (deferred).
+  **Fixes / decision needed (did NOT game the metric to force a pass):**
+  (a) build a relevance-based gate — label each query's *set* of acceptable laws
+  (or measure top-k topical purity) instead of one exact id; and/or
+  (b) validate reranking on the `legal_fulltext` collection where its value is
+  expected. The code is ready and wired for Stage 5; only the *measurement* of
+  its benefit on descriptions is inconclusive. `search_and_rerank()` also fixed a
+  real bug found here: `search_laws` was truncating candidate text to 300 chars,
+  starving the cross-encoder — it now returns the full passage.
   - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
     professor to review/veto every normalization decision) in addition to the
     machine `validation_report.md`.

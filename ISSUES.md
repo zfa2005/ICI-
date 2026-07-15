@@ -964,6 +964,15 @@ ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-15 (RAG Stage 4 — reranker, gate inconclusive 🟡)** — Built
+  `pipeline/rerank.py` (cross-encoder `bge-reranker-base` + source tie-break) and
+  `pipeline/eval_stage4.py`. The reranker did **not** beat the no-rerank baseline
+  on the single-target gold set (recall@8 0.767→0.700). Diagnosed as a
+  gold-set/relevance-clustering artifact, not a code defect: the reranker
+  correctly surfaces the whole cluster of relevant laws, but the eval labels one
+  arbitrary target per query. Also fixed a real bug (candidate text was truncated
+  to 300 chars before the cross-encoder). Next: a relevance-set-based gate and/or
+  validating rerank on the full-text collection. PIPELINEWORKFLOW.md Stage 4 → 🟡.
 - **2026-07-14 (RAG Stage 3 — embeddings)** — Applied the 8 approved subtype
   corrections (derived data only), then built Stage 3: `pipeline/embed.py`
   descriptions ChromaDB collection (13,526 vectors) + `search_laws`. ML stack
