@@ -198,6 +198,37 @@ def get_law_ep(law_id: int, route_reason: Optional[str] = None) -> dict:
     return result
 
 
+# ── semantic search (Stage 3/5) ──────────────────────────────────────────────
+class SearchRequest(BaseModel):
+    query: str
+    state: Optional[str] = None
+    type: Optional[str] = None
+    year_from: Optional[int] = None
+    year_to: Optional[int] = None
+    k: int = Field(default=10, ge=1, le=50)
+    route_reason: Optional[str] = None
+
+
+@app.post("/search_laws")
+def search_laws_ep(req: SearchRequest) -> dict:
+    """Semantic (vector) search over law descriptions — for questions that
+    aren't a clean structured filter. Returns the top-k relevant laws with a
+    text snippet and citation fields. Loads the embedding model lazily on the
+    first call."""
+    import embed
+    t0 = time.perf_counter()
+    filters = {k: v for k, v in {
+        "state": req.state, "type": req.type,
+        "year_from": req.year_from, "year_to": req.year_to,
+    }.items() if v is not None}
+    results = embed.search_laws(req.query, filters=filters or None, k=req.k)
+    for r in results:
+        r["text"] = (r.get("text") or "")[:300]   # snippet for the model / citations
+    log_query("search_laws", req.model_dump(exclude={"route_reason"}),
+              len(results), (time.perf_counter() - t0) * 1000, req.route_reason)
+    return {"query": req.query, "n": len(results), "results": results}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)

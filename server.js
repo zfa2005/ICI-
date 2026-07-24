@@ -31,6 +31,7 @@ const fs       = require('fs');
 const path     = require('path');
 const crypto   = require('crypto');
 const Database = require('better-sqlite3');
+const pipelineChat = require('./api/pipelineChat');  // Stage 5 tool-use loop
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -418,43 +419,28 @@ http.createServer(async (req, res) => {
       return json(res, 500, { error: 'ANTHROPIC_API_KEY not set in .env' });
     }
 
-    // The Claude API expects the system prompt as a top-level field, not
-    // inside the messages array. We split them here so the client can
-    // include everything in one array (simpler client-side state).
-    const system       = messages.find(m => m.role === 'system')?.content || '';
+    // Stage 5: the SERVER owns the system prompt (a fixed taxonomy glossary) and
+    // runs a Claude tool-use loop over the FastAPI retrieval service, instead of
+    // the client injecting a regex-guessed data blob. Any client-sent system
+    // message is ignored; we keep only the user/assistant conversation turns.
     const userMessages = messages.filter(m => m.role !== 'system');
 
-    let upstream, data;
+    let result;
     try {
-      upstream = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type':      'application/json',
-          'x-api-key':         apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model:      'claude-sonnet-4-6',
-          max_tokens: 1024,
-          system,
-          messages:   userMessages,
-        }),
-      });
-      data = await upstream.json();
+      result = await pipelineChat.runToolLoop(apiKey, userMessages);
     } catch (err) {
-      console.error('Upstream error:', err.message);
-      return json(res, 500, { error: err.message });
+      console.error('Tool-loop error:', err.message);
+      return json(res, 502, { error: err.message });
     }
+    const data = { content: [{ type: 'text', text: result.text }], _toolTrace: result.toolTrace };
 
     // Only persist if the client provided a chatId AND Claude returned text.
-    // If either is missing we still return the response — we just don't save it.
-    if (chatId && data.content?.[0]?.text) {
+    if (chatId && result.text) {
       const now           = Date.now();
-      const assistantText = data.content[0].text;
+      const assistantText = result.text;
 
-      // Use newUserContent (the raw user text) rather than the last message
-      // in the array, because that array may contain the data-context payload
-      // injected by the client — we only want to store what the human typed.
+      // newUserContent is the raw human text (the messages array no longer
+      // carries an injected data payload, but keep the field for compatibility).
       const userText = newUserContent || userMessages[userMessages.length - 1]?.content || '';
 
       // Insert user message 1ms before assistant to guarantee chronological order
@@ -480,12 +466,10 @@ http.createServer(async (req, res) => {
       }
     }
 
-    // Pass Claude's response straight back to the client unchanged.
-    // We preserve the original HTTP status so the client can detect
-    // upstream errors (e.g., 429 rate limit) without parsing the body.
-    res.writeHead(upstream.status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
-    return;
+    // Return the final answer in the shape the client already expects
+    // ({ content: [{ type:'text', text }] }); the tool trace rides along for
+    // debugging/observability.
+    return json(res, 200, data);
   }
 
 

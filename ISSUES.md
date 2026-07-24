@@ -20,11 +20,11 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 
 | ID | Title | Area | Severity | Status |
 |----|-------|------|----------|--------|
-| **ISSUE-001** | AI Assistant retrieval is keyword-guessing, not RAG | AI Assistant | 🔴 Critical | Open |
-| **ISSUE-002** | ICI tier score is never used by the assistant | AI Assistant / Data | 🔴 Critical | Open |
-| **ISSUE-003** | No-match fallback returns the first 10 rows, not relevant ones | AI Assistant | 🟠 High | Open |
-| **ISSUE-004** | No memory of filters across conversation turns | AI Assistant | 🟠 High | Open |
-| **ISSUE-005** | Law-type keyword coverage is incomplete (3 of 9 types) | AI Assistant | 🟡 Medium | Open |
+| **ISSUE-001** | AI Assistant retrieval is keyword-guessing, not RAG | AI Assistant | 🔴 Critical | 🟢 Fixed (Stage 5) |
+| **ISSUE-002** | ICI tier score is never used by the assistant | AI Assistant / Data | 🔴 Critical | 🟢 Fixed (Stage 5) |
+| **ISSUE-003** | No-match fallback returns the first 10 rows, not relevant ones | AI Assistant | 🟠 High | 🟢 Fixed (Stage 5) |
+| **ISSUE-004** | No memory of filters across conversation turns | AI Assistant | 🟠 High | 🟢 Fixed (Stage 5) |
+| **ISSUE-005** | Law-type keyword coverage is incomplete (3 of 9 types) | AI Assistant | 🟡 Medium | 🟢 Fixed (Stage 5) |
 | **ISSUE-006** | State field has data-quality bugs (`'null'`, `D.C.`/`DC`, non-US entries) | Data Pipeline | 🟡 Medium | Open |
 | **ISSUE-007** | App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace | Data Pipeline / AI Assistant | 🟠 High | Open |
 | **ISSUE-008** | AI Assistant is dead in production — backend URL is still a placeholder | Frontend / Deploy | 🔴 Critical | Open |
@@ -964,6 +964,17 @@ ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-15 (RAG Stage 5 — tool-use wiring; fixes ISSUE-001–005)** — Replaced
+  the client-side `getDataContext()` regex retrieval with a server-side Claude
+  tool-use loop (`api/pipelineChat.js` + `server.js` `/api/chat`) over the FastAPI
+  pipeline: 5 tools (filter/aggregate/score_ici/search/get_law), taxonomy-glossary
+  system prompt, added `/search_laws` to the FastAPI server, and updated
+  `Assistant.jsx` to send only the conversation. **Gate 20/20** — all numeric
+  answers matched Stage-2 SQL (TX 2019=20, 287g 2017=595, ICI CA=+4574, ICI TX
+  2017=−110, …) plus a working multi-turn follow-up; verified end-to-end in the
+  browser. Marks ISSUE-001/002/003/004/005 🟢 Fixed. Production still needs the
+  backend + FastAPI hosted (ISSUE-008); `api/chat.js` serverless variant not yet
+  updated. PIPELINEWORKFLOW.md Stage 5 → 🟢.
 - **2026-07-15 (RAG Stage 4 — reranker, gate inconclusive 🟡)** — Built
   `pipeline/rerank.py` (cross-encoder `bge-reranker-base` + source tie-break) and
   `pipeline/eval_stage4.py`. The reranker did **not** beat the no-rerank baseline

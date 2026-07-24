@@ -858,43 +858,15 @@ export default function Assistant() {
         }
 
         async function sendToGPT(query) {
+            // Stage 5: the SERVER owns retrieval — it runs a Claude tool-use loop
+            // over the Python pipeline (structured filters + ICI scoring + semantic
+            // search). The client no longer builds a system prompt or injects a
+            // regex-guessed data blob; it just sends the conversation. This fixes
+            // ISSUE-001/002/003/004/005 structurally. `getDataContext` is still
+            // computed locally, but only to drive the optional chart panel.
             const dataContext = getDataContext(query);
 
-            const systemPrompt = `You are an expert analyst for the Immigrant Climate Index (ICI) database. You have access to data about ${dataContext.totalLaws} immigration-related laws in the United States.
-
-The ICI measures the regulatory "climate" for immigrants at federal, state, county, and city levels through a quantitative scoring system:
-- Positive laws (posNeg=1): Immigrant-friendly legislation, also known as "sanctuary laws"
-- Negative/Restrictive laws (posNeg=0): Restrictive/anti-immigrant legislation
-
-The database contains THREE categories of laws:
-- State laws: legislation passed at the state level
-- Local laws: city and county ordinances and policies
-- 287(g) agreements: formal agreements between local law enforcement agencies and ICE
-
-IMPORTANT RULES:
-1. GROUNDING — Answer ONLY using the "Current data context" JSON below. Every
-   number, state, county, city, year, or law you mention must appear in that
-   context. Never estimate, extrapolate, or recall figures from general
-   knowledge or training data.
-2. If the context does not contain what's needed to answer, say so plainly
-   (e.g. "The data provided doesn't cover that") and, if useful, suggest how
-   the user could narrow or rephrase their question. Do not guess.
-3. Do not invent specific bill names, citations, or statistics that are not
-   present in the context.
-4. "Sanctuary laws" = positive/immigrant-friendly laws (posNeg=1).
-5. "Restrictive laws" = negative laws (posNeg=0).
-6. Report the actual numbers from the context, even if a count is 0.
-7. The byState data includes ALL laws within each state.
-8. Use the localities object to name specific cities/counties.
-9. Keep responses concise but informative. Use markdown for readability.
-
-Law Types: ${Object.entries(DATA.typeMap).map(([k, v]) => `${k}=${v}`).join(', ')}
-
-Current data context:
-${JSON.stringify(dataContext, null, 2)}`;
-
             const fullMessages = [
-                { role: 'system', content: systemPrompt },
                 ...conversationHistory,
                 { role: 'user', content: query }
             ];

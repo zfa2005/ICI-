@@ -104,7 +104,7 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 | 2 | Structured query tools (SQL/pandas + FastAPI) | 🟢 |
 | 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🟢 |
 | 4 | Reranker integration | 🟡 |
-| 5 | Claude tool-use wiring (replace regex context builder) | 🔴 |
+| 5 | Claude tool-use wiring (replace regex context builder) | 🟢 |
 | 6 | Eval harness + retrieval logging | 🔴 |
 | 7 | Hardening: incremental refresh, CI checks, docs | 🔴 |
 
@@ -368,6 +368,30 @@ eval fixtures only.
   its benefit on descriptions is inconclusive. `search_and_rerank()` also fixed a
   real bug found here: `search_laws` was truncating candidate text to 300 chars,
   starving the cross-encoder — it now returns the full passage.
+- **2026-07-15 — Stage 5 built and gated 🟢 (Claude tool-use wiring).** The
+  client-side `getDataContext()` regex builder is no longer the retrieval path.
+  Now: the Node `/api/chat` (`api/pipelineChat.js` + `server.js`) runs a Claude
+  tool-use loop — Claude is given 5 tools (`filter_laws`, `aggregate_laws`,
+  `score_ici`, `search_laws`, `get_law`), each proxied to the FastAPI service;
+  tool_results feed back until Claude answers. The system prompt is now a fixed
+  taxonomy glossary (mirrors `taxonomy.py`), not a per-query JSON dump. Added a
+  `/search_laws` endpoint to the FastAPI server (lazy-loads the embedder).
+  `frontend/src/pages/Assistant.jsx` now sends only the conversation; the server
+  owns the prompt (`getDataContext` is kept solely to drive the optional chart
+  panel). **Structurally fixes ISSUE-001** (real retrieval), **-002** (score_ici
+  uses tier weights), **-003** (no meaningless fallback), **-004** (multi-turn
+  memory = the message history), **-005** (every type reachable via enum args).
+  **Gate: 20/20** on a fixed script (`pipeline/eval_stage5.py`) covering every
+  law type, comparisons, an ICI-score question, a concept/search query, and a
+  multi-turn follow-up — all 18 numeric answers matched the Stage-2 SQL ground
+  truth exactly (e.g. TX 2019=20, 287g 2017=595, ICI CA=+4574, ICI TX 2017=−110),
+  and the follow-up "what about 2016?" correctly resolved to Illinois (memory).
+  Verified end-to-end in a browser (Vite→Node→FastAPI). **Runtime:** needs three
+  local processes — FastAPI `:8000`, Node `:3000`, Vite `:5173` — and
+  `ANTHROPIC_API_KEY`. Production still requires hosting both the Node backend and
+  the FastAPI service (ISSUE-008); `api/chat.js` (serverless variant) does not yet
+  have the tool loop. The reranker (Stage 4) is available but not inserted into
+  the tool path pending its relevance-gate rework.
   - **Extra deliverable:** `data_quality_report.md` (plain-English, for the
     professor to review/veto every normalization decision) in addition to the
     machine `validation_report.md`.
