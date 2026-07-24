@@ -964,6 +964,14 @@ ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-24 (RAG Stage 7 — hardening; pipeline plan complete)** — Built
+  `pipeline/refresh.py` (one command: ingest → incremental content-hashed embed →
+  eval → regression gate vs `pipeline/eval_baseline.json`), and a GitHub workflow
+  (`.github/workflows/pipeline-ci.yml`) that runs the corpus-free checks
+  (`py_compile` of all pipeline modules, data-free taxonomy tests, backend `node
+  --check`). Added a Runbook to PIPELINEWORKFLOW.md. Stage 7 → 🟢. All seven RAG
+  stages now built (Stage 4 remains 🟡 by choice). Next: production hosting
+  (ISSUE-008) so the backend + FastAPI service run off `localhost`.
 - **2026-07-24 (RAG Stage 6 — eval harness + retrieval logging)** — Built
   `pipeline/eval.py`: gold set v1 from `audit_sample.csv` (all 531 stratified rows
   mapped to law_ids), recall@k + MRR + per-stratum (state/local/287g) breakdowns,

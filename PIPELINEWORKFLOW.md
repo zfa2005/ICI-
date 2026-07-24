@@ -106,7 +106,7 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 | 4 | Reranker integration | 🟡 |
 | 5 | Claude tool-use wiring (replace regex context builder) | 🟢 |
 | 6 | Eval harness + retrieval logging | 🟢 |
-| 7 | Hardening: incremental refresh, CI checks, docs | 🔴 |
+| 7 | Hardening: incremental refresh, CI checks, docs | 🟢 |
 
 ### Stage 1 — Data foundation (`pipeline/ingest.py`)
 
@@ -254,6 +254,45 @@ The heavy source data stays in `C:\ICI Claude Workspace` (configured in
 eval fixtures only.
 
 ---
+
+## Runbook
+
+**Environment (once):**
+```
+cd pipeline
+python -m venv .venv
+./.venv/Scripts/python -m pip install -r requirements.txt   # Stages 1–2 (fast)
+./.venv/Scripts/python -m pip install sentence-transformers chromadb   # Stage 3+ (ML)
+```
+The corpus defaults to the in-repo `ici_workspace/` (gitignored); override with
+`ICI_WORKSPACE`. All outputs go to `pipeline/out/` (gitignored).
+
+**Build / rebuild the pipeline data:**
+```
+python pipeline/ingest.py            # Stage 1: master CSV -> parquet + sqlite + reports
+python pipeline/embed.py             # Stage 3: build both ChromaDB collections
+python pipeline/eval.py              # Stage 6: retrieval eval -> out/eval/
+python pipeline/refresh.py           # Stage 7: ingest -> incremental embed -> eval -> gate
+python pipeline/refresh.py --check   #   eval + regression gate only (fast path)
+```
+
+**Accuracy gates:**
+```
+./.venv/Scripts/python -m pytest pipeline/tests -q   # Stages 1–2 (26) + taxonomy (5)
+python pipeline/eval_stage3.py                        # Stage 3 recall@50 gate
+python pipeline/eval_stage5.py                        # Stage 5 tool-use gate (needs the services, below)
+python pipeline/refresh.py --check                    # Stage 6/7 regression gate vs eval_baseline.json
+```
+
+**Run the AI assistant end to end (Stage 5) — three processes + a key:**
+```
+# 1. retrieval service
+cd pipeline && ./.venv/Scripts/python server.py           # FastAPI :8000
+# 2. chat backend (repo root; needs ANTHROPIC_API_KEY in .env)
+node server.js                                            # Node :3000  (proxies tools -> :8000)
+# 3. front-end
+cd frontend && npm run dev                                # Vite :5173  (proxies /api -> :3000)
+```
 
 ## Decision log
 
@@ -418,3 +457,19 @@ eval fixtures only.
   human-confirmed rows, add discovered errors as negatives) is not active yet —
   the C1–C6 columns in `audit_sample.csv` are empty; `eval.py` reads them and
   flips on automatically once the human audit runs.
+- **2026-07-24 — Stage 7 built 🟢 (hardening: refresh, CI, docs).**
+  `pipeline/refresh.py` is the one-command pipeline: ingest → **incremental**
+  embed → eval → regression gate. Incremental embed hashes each row's text
+  (`out/embed_manifest.json`) and only re-embeds changed/new rows and deletes
+  vectors for removed rows (via Chroma upsert/delete), so a small master edit
+  doesn't re-embed all 13.5k. The **regression gate** compares the fresh eval to
+  the committed baseline (`pipeline/eval_baseline.json`: recall@10/recall@50/MRR,
+  ±0.02 tol) and exits non-zero on a regression — `--update-baseline` rewrites it
+  deliberately (e.g. after a model change). Because the corpus is
+  gitignored/local-only, this gate runs **locally**; the added GitHub workflow
+  (`.github/workflows/pipeline-ci.yml`) runs the checks a hosted runner *can* do
+  without the corpus — `py_compile` of every pipeline module, the data-free
+  taxonomy unit tests, and `node --check` of the backend JS. Once the data/service
+  is hosted (ISSUE-008) the full eval-regression can move into CI. Added a
+  **Runbook** section above. This completes the seven-stage plan (Stage 4 remains
+  🟡 by choice — reranker built, its measurement inconclusive).

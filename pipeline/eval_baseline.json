@@ -1,0 +1,14 @@
+{
+  "_comment": "Committed retrieval-eval baseline for the Stage 7 regression gate. `python pipeline/refresh.py --check` re-runs the gold-set-v1 eval and fails if any gate metric drops more than `tolerance` below these. Regenerate deliberately (e.g. after a model change) with `--update-baseline`.",
+  "model": "BAAI/bge-small-en-v1.5",
+  "n": 531,
+  "tolerance": 0.02,
+  "gate_metrics": ["recall@10", "recall@50", "MRR"],
+  "overall": {
+    "MRR": 0.822,
+    "recall@1": 0.772,
+    "recall@10": 0.883,
+    "recall@50": 0.972
+  },
+  "generated": "2026-07-24"
+}

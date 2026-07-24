@@ -1,0 +1,49 @@
+name: Pipeline CI
+
+# The retrieval pipeline's heavy corpus (ici_workspace/, ~1.9 GB) and its built
+# artifacts (pipeline/out/: sqlite, parquet, chroma) are gitignored and local-only,
+# so GitHub-hosted runners can't run the full ingest/embed/eval here. This workflow
+# runs the checks that DON'T need the corpus: syntax/compile of every pipeline
+# module, the data-free taxonomy unit tests, and a syntax check of the backend JS.
+#
+# The full eval-regression gate ("metrics must not regress vs baseline") runs
+# locally via `python pipeline/refresh.py --check`, and can be wired in here once
+# the data/service is hosted (see ISSUE-008).
+
+on:
+  push:
+    branches: [main]
+    paths: ['pipeline/**', 'api/**', 'server.js', '.github/workflows/pipeline-ci.yml']
+  pull_request:
+    paths: ['pipeline/**', 'api/**', 'server.js']
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile-check every pipeline module (syntax only, no corpus needed)
+        run: python -m py_compile pipeline/*.py
+      - name: Data-free taxonomy unit tests
+        run: |
+          python -m pip install --quiet pytest
+          # Only the tests that validate the taxonomy structure (no sqlite/parquet).
+          python -m pytest pipeline/tests/test_taxonomy.py \
+            -k "unique or overrides or normalize" -q
+
+  backend-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax-check backend JS
+        run: |
+          node --check server.js
+          node --check api/pipelineChat.js
+          # api/chat.js is an ES module; check it as one.
+          cp api/chat.js /tmp/chat.mjs && node --check /tmp/chat.mjs
