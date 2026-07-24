@@ -105,7 +105,7 @@ Status legend: 🔴 Not started · 🟡 In progress · 🟢 Done
 | 3 | Embedding + vector index (sentence-transformers + ChromaDB) | 🟢 |
 | 4 | Reranker integration | 🟡 |
 | 5 | Claude tool-use wiring (replace regex context builder) | 🟢 |
-| 6 | Eval harness + retrieval logging | 🔴 |
+| 6 | Eval harness + retrieval logging | 🟢 |
 | 7 | Hardening: incremental refresh, CI checks, docs | 🔴 |
 
 ### Stage 1 — Data foundation (`pipeline/ingest.py`)
@@ -400,3 +400,21 @@ eval fixtures only.
     gate: **26/26** pytest tests pass — 2017 counts (287g=595, local=443,
     state=380), 5 hand-verified state/year counts, and 3 `score_ici` spot-checks
     all matched SQLite + manual pandas.
+- **2026-07-24 — Stage 6 built 🟢 (eval harness + retrieval logging,
+  `pipeline/eval.py`).** Gold set v1 from `audit_sample.csv`: all **531**
+  stratified rows map to master law_ids (201 via source_url, 115 via bill_id, 215
+  via description+state+type); each row's `description` is the query and we check
+  whether that row is in the `descriptions` index top-k. Every query's full chain
+  (query, target ids, top-10 candidates + distances, rank, latency) is logged as
+  JSONL to `out/eval/`, with markdown + JSON summaries. **Results (bge-small):**
+  overall recall@50 **0.972**, recall@10 0.883, recall@1 0.772, MRR 0.822.
+  **Per stratum — headline finding:** local recall@1 **0.99**, state 0.85,
+  **287(g) 0.56** (recall@50 recovers to 0.945). 287(g) is weakest because its
+  descriptions are terse near-identical admin notes ("287(g) – X County Sheriff's
+  Dept"), so the exact target often sits below near-duplicate siblings — a real,
+  actionable signal (lean on structured filters for 287(g); the deferred full-text
+  collection would help — reinforces ISSUE-007). Retrieval quality now reports on
+  the same state/local/287g axes as the data audit. **Gold set v2** (weight by
+  human-confirmed rows, add discovered errors as negatives) is not active yet —
+  the C1–C6 columns in `audit_sample.csv` are empty; `eval.py` reads them and
+  flips on automatically once the human audit runs.

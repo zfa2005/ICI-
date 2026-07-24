@@ -964,6 +964,15 @@ ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
   Accuracy gates: Stage 1 = 0 hard violations, counts reconcile; Stage 2 = 26/26
   pytest tests green. Discovered and logged ISSUE-030 (malformed subtypes).
   Stopped here for review before Stage 3 (embeddings).
+- **2026-07-24 (RAG Stage 6 — eval harness + retrieval logging)** — Built
+  `pipeline/eval.py`: gold set v1 from `audit_sample.csv` (all 531 stratified rows
+  mapped to law_ids), recall@k + MRR + per-stratum (state/local/287g) breakdowns,
+  and full retrieval-chain JSONL logging to `out/eval/`. Results (bge-small):
+  overall recall@50 **0.972**; per stratum local recall@1 0.99, state 0.85,
+  **287(g) 0.56** — 287(g)'s terse near-identical descriptions are the weak spot
+  (reinforces ISSUE-007: its full MOA text sits unused). Gold set v2 pending the
+  C1–C6 human audit (columns still empty; harness auto-activates once filled).
+  PIPELINEWORKFLOW.md Stage 6 → 🟢.
 - **2026-07-15 (RAG Stage 5 — tool-use wiring; fixes ISSUE-001–005)** — Replaced
   the client-side `getDataContext()` regex retrieval with a server-side Claude
   tool-use loop (`api/pipelineChat.js` + `server.js` `/api/chat`) over the FastAPI
