@@ -18,8 +18,13 @@
  * source) — a small fixed reference, not per-query data.
  */
 
-const PIPELINE_URL = process.env.PIPELINE_URL || 'http://127.0.0.1:8000';
 const CHAT_MODEL   = process.env.ICI_CHAT_MODEL || 'claude-sonnet-4-6';
+
+// Path 2: the retrieval tools run IN-PROCESS in Node (no separate Python/FastAPI
+// service). Structured tools hit ici.sqlite via better-sqlite3; semantic search
+// runs bge-small in-process (transformers.js) over in-memory vectors.
+const db     = require('../server/db');
+const search = require('../server/search');
 
 // ── Tool schema (Anthropic tool-use format) ─────────────────────────────────
 const FILTERS = {
@@ -127,19 +132,30 @@ RULES (grounding — this is an academic tool under named authors):
 5. When you reference specific laws, cite them (state, year, and law_id or source_url from the tool result) so the user can verify.
 6. Be concise; use markdown. State which jurisdiction/year/filter your numbers are for.`;
 
-// ── Tool execution (proxy to the FastAPI retrieval service) ─────────────────
+// ── Tool execution (in-process; no external service) ────────────────────────
 async function callTool(name, input) {
-  let url = `${PIPELINE_URL}/${name}`;
-  let opts = { method: 'POST', headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ ...input, route_reason: `claude:${name}` }) };
-  if (name === 'get_law') {
-    url = `${PIPELINE_URL}/law/${encodeURIComponent(input.law_id)}?route_reason=claude`;
-    opts = { method: 'GET' };
+  try {
+    switch (name) {
+      case 'filter_laws':
+        return db.filterLaws(input);
+      case 'aggregate_laws': {
+        const { group_by, ...filters } = input;
+        return db.aggregateLaws(group_by, filters);
+      }
+      case 'score_ici':
+        return db.scoreIci(input);
+      case 'search_laws': {
+        const { query, ...opts } = input;
+        return await search.searchLaws(query, opts);
+      }
+      case 'get_law':
+        return db.getLaw(input.law_id) || { error: `law_id ${input.law_id} not found` };
+      default:
+        return { error: `unknown tool ${name}` };
+    }
+  } catch (e) {
+    return { error: String(e.message || e) };
   }
-  const resp = await fetch(url, opts);
-  const data = await resp.json().catch(() => ({ error: 'non-JSON response from retrieval service' }));
-  if (!resp.ok) return { error: data.detail || data.error || `retrieval service ${resp.status}` };
-  return data;
 }
 
 // ── Tool-use loop ───────────────────────────────────────────────────────────
@@ -184,4 +200,4 @@ async function runToolLoop(apiKey, messages, { maxRounds = 6, maxTokens = 1024 }
   return { text: 'I wasn’t able to finish looking that up — please try narrowing the question.', toolTrace, rounds: maxRounds, stop_reason: 'max_rounds' };
 }
 
-module.exports = { TOOLS, SYSTEM_PROMPT, runToolLoop, callTool, PIPELINE_URL, CHAT_MODEL };
+module.exports = { TOOLS, SYSTEM_PROMPT, runToolLoop, callTool, CHAT_MODEL };

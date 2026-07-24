@@ -1,0 +1,30 @@
+# Deploy the ENTIRE ICI app as ONE Render web service.
+#
+# One Node process serves the built React front-end AND the API — chat (Claude
+# tool-use loop) plus the in-process retrieval tools (structured SQLite queries +
+# bge-small semantic search). There is NO separate Python service (Path 2): the
+# Python pipeline is used offline only, to (re)generate the committed data in
+# server/data/ (ici.sqlite + the vector files).
+#
+# One-click: push this file, then in Render → "New +" → "Blueprint" → pick this repo.
+# Set ANTHROPIC_API_KEY in the dashboard (it's marked secret below).
+
+services:
+  - type: web
+    name: ici
+    runtime: node
+    region: oregon
+    plan: standard            # ~2 GB RAM — holds the bge-small model (~130 MB) +
+                              # 20 MB of vectors in memory. 512 MB starter is too tight.
+    buildCommand: npm install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node server.js
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false           # set this in the Render dashboard (secret)
+      - key: NODE_VERSION
+        value: "20"
+      # If you later host the front-end elsewhere, add that origin here:
+      # - key: ALLOWED_ORIGINS
+      #   value: https://your-frontend.example.com

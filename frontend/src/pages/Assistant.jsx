@@ -21,9 +21,10 @@ export default function Assistant() {
         const root = rootRef.current;
         const $ = (id) => root.querySelector(`#${id}`);
 
-        const API_BASE = /\.github\.io$/.test(location.hostname)
-            ? 'https://REPLACE-WITH-RENDER-URL.onrender.com'
-            : '';
+        // Same-origin by default: one Node server now serves this app AND the API
+        // (Path 2). Only set VITE_API_BASE at build time if the front-end is hosted
+        // separately from the backend (e.g. GitHub Pages -> a hosted backend URL).
+        const API_BASE = import.meta.env.VITE_API_BASE || '';
 
         Chart.defaults.color = '#A1A1AA';
         Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';

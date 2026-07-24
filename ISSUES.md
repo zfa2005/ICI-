@@ -27,7 +27,7 @@ the entry: mark it fixed, note the date/commit, and leave it as a record.
 | **ISSUE-005** | Law-type keyword coverage is incomplete (3 of 9 types) | AI Assistant | 🟡 Medium | 🟢 Fixed (Stage 5) |
 | **ISSUE-006** | State field has data-quality bugs (`'null'`, `D.C.`/`DC`, non-US entries) | Data Pipeline | 🟡 Medium | Open |
 | **ISSUE-007** | App uses a thin slice of the available corpus — full-text sources sit unused in the ICI Claude Workspace | Data Pipeline / AI Assistant | 🟠 High | Open |
-| **ISSUE-008** | AI Assistant is dead in production — backend URL is still a placeholder | Frontend / Deploy | 🔴 Critical | Open |
+| **ISSUE-008** | AI Assistant is dead in production — backend URL is still a placeholder | Frontend / Deploy | 🔴 Critical | 🟡 Deploy-ready |
 | **ISSUE-009** | Stored XSS via chat messages (raw user input → `innerHTML`, persisted & replayed) | Security | 🔴 Critical | 🟢 Fixed |
 | **ISSUE-010** | Chat proxy has wildcard CORS and no rate limiting → API-credit theft | Security / Backend | 🟠 High | 🟢 Fixed |
 | **ISSUE-011** | Unsanitized AI/markdown output + data-driven XSS in result tables | Security | 🟠 High | 🟢 Fixed |
@@ -897,6 +897,20 @@ already right + one obvious code, e.g. `V/Vote`→`V/32`, `T/T`→`T/66`); the o
 ingest (one step). This is the "clean data" gate before Stage 3 embeddings.
 
 ## Changelog
+
+- **2026-07-24 (Path 2 — single Node backend; collapses the two services)** —
+  Reworked the runtime so the AI assistant needs only **one** backend (no Python
+  service). The retrieval tools now run in-process in Node: structured
+  filter/aggregate/score_ici/get_law via `better-sqlite3` over
+  `server/data/ici.sqlite` (`server/db.js`), and semantic search via bge-small in
+  Node (`transformers.js`, `server/embed.js` + `server/search.js`) over pre-built
+  vectors held in memory. `api/pipelineChat.js` calls these directly instead of
+  proxying to FastAPI. Verified: **Stage-5 gate 20/20 against the Node-only
+  backend** (identical to the two-service version). The Python pipeline is now
+  offline-only (regenerates `server/data/`). Also fixed the `API_BASE` placeholder
+  (now `VITE_API_BASE`, same-origin by default) and added `render.yaml` + `DEPLOY.md`
+  to host the whole app as **one Render service** — moving **ISSUE-008** to
+  Deploy-ready (still needs the actual deploy + `ANTHROPIC_API_KEY`).
 
 - **2026-07-09** — File created. Logged the full RAG/retrieval audit
   (ISSUE-001 through ISSUE-006) after reviewing `server.js`,
